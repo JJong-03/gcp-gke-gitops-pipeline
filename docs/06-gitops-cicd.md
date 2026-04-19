@@ -40,6 +40,8 @@ Trigger:
 
 현재 workflow는 `main` branch push에서 image를 build/push하지만 Kubernetes manifest image tag를 자동 갱신하지 않는다. 초기 버전에서는 push된 image URI를 `k8s/deployment.yaml`에 수동으로 반영하고, 그 변경을 Git에 기록한 뒤 Argo CD sync로 배포한다.
 
+2026-04-19 기준 GitHub Actions `main` push workflow로 Artifact Registry에 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image가 생성된 것을 확인했다. 이 tag를 다음 GitOps 검증용 desired state로 `k8s/deployment.yaml`에 수동 반영했다.
+
 ## Artifact Registry 기준
 
 Terraform의 `artifact_registry` module이 Docker repository를 생성한다.
@@ -144,12 +146,12 @@ gitops/argocd-app.yaml
 |---|---|
 | Application name | `gke-gitops-pipeline` |
 | Argo CD namespace | `argocd` |
-| Source repoURL | `https://github.com/OWNER/REPOSITORY.git` placeholder |
+| Source repoURL | `https://github.com/JJong-03/gcp-gke-gitops-pipeline.git` |
 | Source path | `k8s` |
 | Target namespace | `default` |
 | Sync policy | automated prune/selfHeal |
 
-Argo CD 설치와 cluster bootstrap은 아직 검증되지 않았다. 실제 GitOps 검증 전에는 `repoURL`을 실제 GitHub repository URL로 교체해야 한다.
+Argo CD 설치와 cluster bootstrap은 아직 검증되지 않았다. `repoURL`은 실제 GitHub repository URL로 교체됐다.
 
 ## 보류 중인 결정
 

@@ -6,7 +6,7 @@
 
 ## 작성 전제
 
-현재 저장소는 Terraform 모듈 구현, Kubernetes manifest, GitHub Actions workflow, Argo CD Application manifest가 준비된 상태다. GCP `terraform apply`는 SSD quota와 disk size 이슈를 해결한 뒤 완료됐으며, GKE cluster는 `RUNNING`, node 수는 `2`, node 상태는 `Ready`, system pod는 `Running`으로 확인됐다. GKE node service account의 기본 node role과 Artifact Registry reader IAM policy 조회도 완료했고, 로컬 Docker 기반 수동 image build/push로 Artifact Registry에 sample app image를 push했다. 해당 image를 `k8s/deployment.yaml`에 반영해 Deployment rollout과 GKE image pull도 검증했다. Service 생성, NEG 자동 annotation, Ingress backend/events, External IP HTTP 200 응답까지 확인했다.
+현재 저장소는 Terraform 모듈 구현, Kubernetes manifest, GitHub Actions workflow, Argo CD Application manifest가 준비된 상태다. GCP `terraform apply`는 SSD quota와 disk size 이슈를 해결한 뒤 완료됐으며, GKE cluster는 `RUNNING`, node 수는 `2`, node 상태는 `Ready`, system pod는 `Running`으로 확인됐다. GKE node service account의 기본 node role과 Artifact Registry reader IAM policy 조회도 완료했고, 로컬 Docker 기반 수동 image build/push로 Artifact Registry에 sample app image를 push했다. 해당 image를 `k8s/deployment.yaml`에 반영해 Deployment rollout과 GKE image pull도 검증했다. Service 생성, NEG 자동 annotation, Ingress backend/events, External IP HTTP 200 응답, GitHub Actions CI image push까지 확인했다.
 
 포트폴리오 설명 문장은 `docs/07-validation.md`의 실제 검증 결과와 `docs/08-troubleshooting.md`의 문제 해결 기록을 근거로 확정한다. 완료되지 않은 항목은 완료된 것처럼 표현하지 않는다.
 
@@ -34,7 +34,7 @@ GCP 기반 GKE 인프라를 Terraform으로 구성하고, GitHub Actions와 Arti
 현재 상태 설명:
 
 ```text
-현재는 Terraform 모듈, Kubernetes workload manifest, Argo CD Application manifest, GitHub Actions workflow 초안이 준비되어 있고, Terraform apply, GKE bootstrap, GKE node IAM, 수동 Artifact Registry image push, Deployment rollout, GKE image pull, Service/NEG annotation, Ingress backend/events, External IP HTTP 200 응답 확인까지 완료했습니다. CI/GitOps 검증은 단계별로 추가하는 중입니다.
+현재는 Terraform 모듈, Kubernetes workload manifest, Argo CD Application manifest, GitHub Actions workflow 초안이 준비되어 있고, Terraform apply, GKE bootstrap, GKE node IAM, 수동 Artifact Registry image push, Deployment rollout, GKE image pull, Service/NEG annotation, Ingress backend/events, External IP HTTP 200 응답, GitHub Actions CI image push 확인까지 완료했습니다. GitOps 검증은 단계별로 추가하는 중입니다.
 ```
 
 검증 완료 후 사용할 수 있는 설명은 실제 결과가 생긴 뒤 별도로 확정한다.
@@ -58,7 +58,7 @@ GCP 기반 GKE 인프라를 Terraform으로 구성하고, GitHub Actions와 Arti
 - Kubernetes Deployment rollout과 GKE image pull 결과는 validation 문서에 반영됨
 - Kubernetes Service/NEG annotation과 Ingress backend/events 결과는 validation 문서에 반영됨
 - Ingress External IP HTTP 접근 검증 결과는 validation 문서에 반영됨
-- GitHub Actions workflow 실행 결과
+- GitHub Actions workflow 실행 결과는 validation 문서에 반영됨
 - 수동 Artifact Registry image push 결과는 validation 문서에 반영됨
 - Argo CD sync/health 결과
 - 실제 troubleshooting 사례와 해결 과정

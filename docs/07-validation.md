@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|---|
 | GCP API enablement | `gcloud services enable compute.googleapis.com container.googleapis.com artifactregistry.googleapis.com serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com` | 필요한 API가 활성화됨 | 수동 활성화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | GitHub OIDC/WIF GCP prerequisite | Workload Identity Provider, deploy service account, `roles/iam.workloadIdentityUser` 확인 | GitHub Actions가 service account로 인증 가능한 GCP 측 사전조건 구성 | deploy service account, Artifact Registry writer 권한, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료 | 완료 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
-| GitHub repository variables/secrets | Repository Actions variables/secrets 확인 | workflow가 project/region/repository 값과 WIF secret을 사용할 수 있음 | 미확인. initial push workflow가 7초 만에 `Build image` job에서 실패해 variables 미등록 가능성이 높음 | 대기 | GitHub Actions run #1 | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
+| GitHub repository variables/secrets | Repository Actions variables/secrets 확인 | workflow가 project/region/repository 값과 WIF secret을 사용할 수 있음 | 등록 후 commit `e3a889e...` push에서 CI image가 Artifact Registry에 생성되어 간접 검증 완료 | 완료 | 2026-04-19 GitHub/GCP | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
 | Terraform init | `terraform init` | provider와 module 초기화 성공 | `hashicorp/google v5.45.2` 설치, 모듈 초기화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform validate | `terraform validate` | Terraform syntax와 provider schema 검증 성공 | `Success! The configuration is valid.` | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform plan (1차) | `terraform plan -var="project_id=..."` | VPC, subnet, GKE, Artifact Registry 생성 계획 확인 | 8 resources to add. `readers["gke_node"]` key가 정적 map으로 정상 resolve됨 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
@@ -43,8 +43,8 @@
 | Ingress backend/events | `kubectl describe ingress sample-app`, `gcloud compute backend-services get-health` | backend 연결 상태와 events 확인 | UrlMap, TargetProxy, ForwardingRule 생성. sample app backend `HEALTHY` 확인 | 완료 | 2026-04-19 local | `docs/05-app-deployment.md` |
 | External access | External IP HTTP 접근 확인 | placeholder app 응답 확인 | 전파 대기 후 `curl http://[INGRESS_IP]/`에서 `HTTP/1.1 200 OK`, `Via: 1.1 google`, placeholder HTML 응답 확인 | 완료 | 2026-04-19 local | `docs/05-app-deployment.md` |
 | GitHub repository push | `git push -u origin main`, GitHub repository 확인 | main branch에 repository baseline push | GitHub repository `JJong-03/gcp-gke-gitops-pipeline`에 commit `c28b5d1` push 완료, workflow run #1 생성 | 완료 | 2026-04-19 GitHub | `docs/06-gitops-cicd.md` |
-| GitHub Actions build | workflow `build` job 확인 | Docker image build 성공 | Initial push의 workflow run #1에서 `Build image` job 실패, total duration 7s. GitHub variables/secrets 등록 후 rerun 필요 | 실패 | GitHub Actions run #1, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
-| Artifact Registry push (CI) | GitHub Actions workflow `push` job 또는 registry 확인 | `sample-app:${GITHUB_SHA}` image push 확인 | 미실행 | 대기 | TODO | `docs/06-gitops-cicd.md` |
+| GitHub Actions build | workflow `build` job 확인 | Docker image build 성공 | commit `e3a889e...` push 후 Artifact Registry에 matching image tag가 생성되어 build/push flow 성공 확인 | 완료 | 2026-04-19 GitHub/GCP | `docs/06-gitops-cicd.md` |
+| Artifact Registry push (CI) | GitHub Actions workflow `push` job 또는 registry 확인 | `sample-app:${GITHUB_SHA}` image push 확인 | `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` 생성 확인. Digest `sha256:5612a9a865a5037fbf4c0a3f742251ed54d54f9396d2e517544f000efcb3c001` | 완료 | 2026-04-19 GCP | `docs/06-gitops-cicd.md` |
 | Argo CD sync | Argo CD Application 확인 | sync status `Synced`, health `Healthy` | 미실행 | 대기 | TODO | `docs/06-gitops-cicd.md` |
 
 ## 실행 기록 템플릿
@@ -327,6 +327,21 @@
 - 상태: 실패
 - 관련 이슈: `docs/08-troubleshooting.md` — GitHub Actions initial push가 repository variables/secrets 등록 전 실패
 - 다음 검증: GitHub Actions variables/secrets 등록 후 workflow run #1 rerun 또는 빈 commit push로 재검증
+
+### 2026-04-19 - GitHub Actions CI image push 검증
+
+- 명령: `git commit -m "Record GitHub Actions initial run"` 후 `git push`
+- 기대 결과: GitHub repository `main` branch에 새 commit push, GitHub Actions CI 실행
+- 실제 결과: commit `e3a889e3cf74ba0491c60436492a085fe3419f4f` push 완료
+- 상태: 완료
+
+- 명령: `gcloud artifacts docker images list asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app --include-tags`
+- 기대 결과: GitHub Actions `main` push workflow가 Artifact Registry에 `sample-app:${GITHUB_SHA}` image를 push
+- 실제 결과: Artifact Registry에 tag `e3a889e3cf74ba0491c60436492a085fe3419f4f` image 생성 확인. Digest `sha256:5612a9a865a5037fbf4c0a3f742251ed54d54f9396d2e517544f000efcb3c001`, create time `2026-04-19T21:20:18`, size `20972226`.
+- 상태: 완료
+
+- 참고: 기존 수동 push tag `manual-20260419201633`도 repository에 유지됨.
+- 다음 검증: `k8s/deployment.yaml` image를 CI tag로 수동 갱신하고, Argo CD가 Git desired state를 sync하는지 확인
 
 ## 증거 기록 기준
 

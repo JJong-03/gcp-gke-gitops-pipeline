@@ -22,10 +22,10 @@
 ${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/sample-app:${GITHUB_SHA}
 ```
 
-현재 `k8s/deployment.yaml`의 image 값은 수동 push한 Artifact Registry image다.
+현재 `k8s/deployment.yaml`의 image 값은 GitHub Actions가 push한 Artifact Registry image다.
 
 ```text
-asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:manual-20260419201633
+asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f
 ```
 
 초기 버전에서는 Artifact Registry에 push된 image URI를 `k8s/deployment.yaml`에 수동으로 반영한다. 자동 image updater나 CI 기반 manifest PR 생성은 후순위로 둔다.
@@ -45,7 +45,7 @@ docker push "${IMAGE}"
 asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:manual-20260419201633
 ```
 
-이 image URI를 `k8s/deployment.yaml`에 반영했고, GKE Pod 생성으로 image pull을 검증했다. 자세한 troubleshooting 경과는 `docs/08-troubleshooting.md`에 기록한다.
+이 image URI를 `k8s/deployment.yaml`에 반영했고, GKE Pod 생성으로 image pull을 검증했다. 이후 GitHub Actions push workflow로 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image push를 검증했고, 다음 GitOps 검증을 위해 `k8s/deployment.yaml`의 image도 이 CI tag로 갱신했다. 자세한 troubleshooting 경과는 `docs/08-troubleshooting.md`에 기록한다.
 
 ## Kubernetes Manifest 기준
 
@@ -74,9 +74,9 @@ asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:manual-
 
 | 항목 | 현재 상태 | 조치 |
 |---|---|---|
-| Image URI | `sample-app:manual-20260419201633` image URI 반영 완료 | 다음 CI push 검증 전까지 수동 검증 image 유지 |
+| Image URI | `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image URI 반영 완료 | Argo CD sync로 Git desired state 배포 확인 |
 | Ingress host | host rule 제거됨 | GKE Ingress가 할당한 External IP로 HTTP 접근 확인 |
-| Argo CD repoURL | placeholder | 실제 GitHub repository URL로 교체 |
+| Argo CD repoURL | `https://github.com/JJong-03/gcp-gke-gitops-pipeline.git` 반영 완료 | Argo CD Application 적용 |
 | Namespace | `default` | 초기 버전에서는 유지 |
 
 ## Artifact Registry Image Pull 기준

@@ -25,15 +25,15 @@
 | 3 | 완료 | Terraform 검증과 GCP 리소스 생성 | 사전 GCP API 활성화, `terraform init`, `validate`, `plan`, `apply` 결과가 기록됨. 3차 apply에서 GCP 리소스 생성 성공: `8 added, 0 changed, 0 destroyed`. | `docs/03-terraform-plan.md`, `docs/07-validation.md` |
 | 4 | 완료 | GKE 접속과 bootstrap 점검 | `gcloud container clusters get-credentials`, `kubectl get nodes`, `kubectl get pods -A` 결과가 기록됨 | `docs/04-gke-bootstrap.md`, `docs/07-validation.md` |
 | 5 | 완료 | 샘플 앱 이미지와 Kubernetes 배포 검증 | 실제 image URI가 수동 반영되고 `Deployment`, `Service`, host rule 없는 `Ingress`, Service NEG annotation/backend 상태, External IP 접근 결과가 기록됨 | `docs/05-app-deployment.md`, `docs/07-validation.md` |
-| 6 | 진행 중 | GitHub Actions와 Artifact Registry 흐름 정리 | workflow trigger, image URI, GitHub OIDC/WIF 사전조건, secret, push 조건, 수동 image tag 반영 전략이 문서화됨 | `docs/06-gitops-cicd.md` |
-| 7 | 대기 | Argo CD GitOps sync 검증 | `argocd-app.yaml` repoURL이 실제 값으로 교체되고 sync/health 결과가 기록됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
+| 6 | 완료 | GitHub Actions와 Artifact Registry 흐름 정리 | workflow trigger, image URI, GitHub OIDC/WIF 사전조건, secret, push 조건, CI image push 결과가 문서화됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
+| 7 | 진행 중 | Argo CD GitOps sync 검증 | `argocd-app.yaml` repoURL이 실제 값으로 교체되고 sync/health 결과가 기록됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
 | 8 | 대기 | 최종 검증, troubleshooting, 포트폴리오 정리 | 검증 증거와 해결 이슈를 기반으로 README와 portfolio notes가 정리됨 | `docs/08-troubleshooting.md`, `docs/09-portfolio-notes.md`, `README.md` |
 
 ## 현재 우선순위
 
-1. **즉시**: GitHub repository Actions variables/secrets를 등록한다.
-2. 실패한 GitHub Actions run #1을 `Re-run all jobs`로 재실행하거나 빈 commit을 push한다.
-3. `build` job과 `push` job 성공, Artifact Registry image push 결과를 확인한다.
+1. **즉시**: `gitops/argocd-app.yaml`의 실제 repository URL과 `k8s/deployment.yaml`의 CI image tag 변경을 commit/push한다.
+2. Argo CD를 `argocd` namespace에 설치한다.
+3. `gitops/argocd-app.yaml`을 적용하고 Argo CD Application sync/health를 확인한다.
 4. 검증 결과를 `docs/07-validation.md`에 기록하고, 실패 시 `docs/08-troubleshooting.md`에 원인과 해결을 남긴다.
 
 ## 결정 완료 및 남은 검증
@@ -42,12 +42,12 @@
 |---|---|---|---|
 | GKE node locations | regional cluster에 `asia-northeast3-a`, `asia-northeast3-c` 명시 | Terraform apply 완료, `kubectl get nodes`에서 node 2개 `Ready` 확인 완료 | `terraform/modules/gke/*`, `terraform/variables.tf`, `terraform/main.tf`, `README.md`, `CLAUDE.md`, `docs/01-architecture.md`, `docs/03-terraform-plan.md` |
 | GKE node service account IAM | 별도 node service account 생성 후 project-level `roles/container.defaultNodeServiceAccount`와 Artifact Registry repository-scoped `roles/artifactregistry.reader` 부여 | Terraform apply, 실제 IAM policy 조회, GKE image pull 검증 완료 | `terraform/modules/gke/*`, `terraform/modules/artifact_registry/*`, `docs/03-terraform-plan.md`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
-| GitHub Actions 인증 | GitHub OIDC + Workload Identity Federation 사용, 초기 버전은 수동 사전조건 | deploy service account, Artifact Registry writer binding, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료. GitHub variables/secrets 등록과 workflow rerun 필요 | `.github/workflows/ci.yml`, `README.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
+| GitHub Actions 인증 | GitHub OIDC + Workload Identity Federation 사용, 초기 버전은 수동 사전조건 | deploy service account, Artifact Registry writer binding, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding, GitHub variables/secrets, CI image push 검증 완료 | `.github/workflows/ci.yml`, `README.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
 | GCP API enablement | 초기 버전은 사전 수동 활성화 | `sts.googleapis.com` 포함 API 목록 문서화 및 실제 활성화 결과 기록 완료 | `README.md`, `docs/03-terraform-plan.md`, `docs/07-validation.md` |
-| image tag 업데이트 전략 | 초기 버전은 CI push 후 수동 manifest 갱신, 이후 Argo CD sync | `sample-app:manual-20260419201633` image URI 수동 반영 완료. 자동 업데이트는 후순위로 유지 | `k8s/deployment.yaml`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
+| image tag 업데이트 전략 | 초기 버전은 CI push 후 수동 manifest 갱신, 이후 Argo CD sync | CI가 push한 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image URI를 `k8s/deployment.yaml`에 반영. 자동 업데이트는 후순위로 유지 | `k8s/deployment.yaml`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
 | 수동 image build/push | 로컬 Docker 기반 smoke test 또는 GitHub Actions WIF 기반 push 중 선택 | 로컬 Docker 기반 수동 smoke test 완료. `sample-app:manual-20260419201633` push, Deployment rollout, GKE pull 검증 완료 | `docs/05-app-deployment.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
 | Ingress 검증 | 초기 버전은 host rule 제거, ClusterIP Service와 GCE Ingress baseline 유지 | Service 생성, NEG 자동 annotation, backend endpoint, Ingress backend/events, external address, HTTP 200 응답 확인 완료 | `k8s/ingress.yaml`, `k8s/service.yaml`, `README.md`, `docs/01-architecture.md`, `docs/05-app-deployment.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
-| 실제 GitHub repository URL | `gitops/argocd-app.yaml`에 placeholder 유지 | 실제 repository 생성 후 repoURL 교체 | `gitops/argocd-app.yaml`, `README.md`, `docs/06-gitops-cicd.md` |
+| 실제 GitHub repository URL | `gitops/argocd-app.yaml`에 `https://github.com/JJong-03/gcp-gke-gitops-pipeline.git` 반영 | 변경분 commit/push 후 Argo CD Application 적용 | `gitops/argocd-app.yaml`, `README.md`, `docs/06-gitops-cicd.md` |
 
 ## 문서 업데이트 규칙
 

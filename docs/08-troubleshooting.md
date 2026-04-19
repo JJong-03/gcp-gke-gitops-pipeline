@@ -479,7 +479,9 @@ git push
 ```
 
 - 검증:
-  - 아직 미완료. 다음 run에서 `build` job 성공, `push` job 성공, Artifact Registry에 `sample-app:${GITHUB_SHA}` tag 생성 확인 필요.
+  - 완료. GitHub repository variables/secrets 등록 후 commit `e3a889e3cf74ba0491c60436492a085fe3419f4f` push에서 Artifact Registry에 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` tag가 생성됐다.
+  - 확인된 digest: `sha256:5612a9a865a5037fbf4c0a3f742251ed54d54f9396d2e517544f000efcb3c001`
+  - 이 결과로 GitHub Actions build/push와 WIF 인증, Artifact Registry writer 권한이 동작했음을 확인했다.
 - 재발 방지:
   - 첫 push 전에 repository variables/secrets를 먼저 등록한다.
   - workflow에 둔 `Validate workflow configuration` 단계는 변수 누락을 빠르게 드러내기 위한 의도적 fail-fast 단계이므로 유지한다.

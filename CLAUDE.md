@@ -70,7 +70,7 @@ The cluster strategy is regional GKE with explicit node locations in `asia-north
 
 GKE nodes use a dedicated node service account instead of relying on the default Compute Engine service account. Terraform defines the GKE default node role `roles/container.defaultNodeServiceAccount` at project scope and grants Artifact Registry repository-scoped `roles/artifactregistry.reader` so the cluster can pull the sample app image after deployment.
 
-The sample app has been manually built, pushed to Artifact Registry, deployed to GKE, and verified for image pull. The Service and hostless GCE Ingress have been applied; Service NEG auto annotation, Ingress backend/events, External IP assignment, and HTTP 200 access are validated.
+The sample app has been manually built, pushed to Artifact Registry, deployed to GKE, and verified for image pull. The Service and hostless GCE Ingress have been applied; Service NEG auto annotation, Ingress backend/events, External IP assignment, and HTTP 200 access are validated. GitHub Actions has also pushed a commit-tagged image to Artifact Registry; Argo CD sync validation is the next phase.
 
 ---
 

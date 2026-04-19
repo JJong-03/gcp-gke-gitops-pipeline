@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: sample-app
-          image: "asia-northeast3-docker.pkg.dev/warm-castle-493809-s1/gke-gitops-images/sample-app:manual-20260419201633"
+          image: "asia-northeast3-docker.pkg.dev/warm-castle-493809-s1/gke-gitops-images/sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
