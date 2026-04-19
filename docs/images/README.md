@@ -8,6 +8,7 @@
 
 | File | Evidence |
 |---|---|
+| `00-architecture.png` | GCP GKE GitOps Pipeline architecture diagram |
 | `01-terraform-apply-success.png` | `terraform apply` 성공과 Terraform outputs |
 | `02-gke-cluster-running.png` | GKE cluster `RUNNING`, node 수 `2` |
 | `03-gke-get-credentials.png` | `gcloud container clusters get-credentials` 성공 |

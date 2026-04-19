@@ -134,4 +134,4 @@ Terraform은 Kubernetes workload manifest, Argo CD sync, GitHub Actions workflow
 - image tag를 Kubernetes manifest에 반영하는 초기 전략은 수동 manifest 갱신으로 결정되었으며, 자동화는 후순위다.
 - Argo CD 설치/bootstrap, Application sync/health, CI image tag 기반 Deployment rollout까지 검증됐다.
 - 필요한 GCP API는 초기 버전에서 사전 수동 활성화를 전제로 하며, Terraform 자동화는 후순위다.
-- 아키텍처 이미지는 아직 없다. 추가 시 `README.md`와 이 문서의 텍스트 구조와 일치해야 한다.
+- 아키텍처 이미지는 `docs/images/00-architecture.png`에 추가되어 있으며, README는 이 이미지를 첫 번째 구조 설명으로 사용한다.
