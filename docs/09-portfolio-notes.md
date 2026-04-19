@@ -32,7 +32,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 | Service and NEG | `ClusterIP` Service 생성, GKE Ingress용 NEG annotation/status와 service network endpoint group 확인 |
 | Ingress | GCE Ingress External IP 할당, backend health 확인, External IP HTTP 접근에서 `HTTP/1.1 200 OK` 확인 |
 | GitHub Actions | OIDC/WIF 수동 구성 후 `main` push workflow가 Artifact Registry image push까지 성공 |
-| Bootstrap Terraformization | GCP API enablement와 GitHub Actions WIF prerequisite Terraform code 추가 및 `terraform validate` 성공. 기존 수동 리소스 import와 post-import plan 검토 필요 |
+| Bootstrap Terraformization | GCP API enablement(8개)와 GitHub Actions WIF prerequisite(5개 리소스) Terraform import 완료. post-import `terraform plan` `No changes.` 확인 |
 | Argo CD | Argo CD 설치, Application 생성, `Synced/Healthy`, CI image tag 기반 Deployment rollout 확인 |
 
 검증 캡처는 [docs/images/README.md](images/README.md)에 목록화되어 있고, README의 [Evidence](../README.md#evidence) 섹션에는 주요 캡처가 바로 보이도록 연결되어 있다.
@@ -75,7 +75,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 ## Future Improvements
 
 - Terraform state를 GCS remote backend로 이전하고, state 접근 권한과 locking 전략을 정리한다.
-- GCP API enablement와 GitHub OIDC/WIF 수동 리소스를 Terraform state에 import하고, post-import plan이 destroy/recreate 없이 안정적인지 검증한다.
+- Terraform remote backend를 GCS로 이전하고 state locking을 구성한다.
 - HTTPS Ingress를 위해 static IP, Managed Certificate, Cloud DNS 구성을 추가한다.
 - GitHub Actions가 push한 image tag를 manifest에 자동 반영하는 전략을 도입한다. 선택지는 CI가 PR을 생성하는 방식, Kustomize/Helm values 업데이트, Argo CD Image Updater 등이다.
 - Argo CD `AppProject`, RBAC, repository access policy를 강화해 GitOps 운영 경계를 더 명확히 한다.

@@ -100,7 +100,7 @@
 - 대상: `module.project_services` 8개 API, `module.github_wif` 5개 리소스 (총 13개)
 - 명령: `terraform import` (TF_VAR 환경변수 기반, 리소스별 one-line command)
 - 실제 결과: 13개 import 모두 성공. post-import 초기 plan에서 WIF pool/provider `# forces replacement` 발생.
-- 원인: WIF pool/provider import ID가 project number 기반이라 state에 `project = "258687934668"`이 저장됐지만 코드는 `project = var.project_id`(문자 ID)여서 provider가 불일치 감지 후 recreate 계획
+- 원인: WIF pool/provider import ID가 project number 기반이라 state에 `project = "[PROJECT_NUMBER]"`이 저장됐지만 코드는 `project = var.project_id`(문자 ID)여서 provider가 불일치 감지 후 recreate 계획
 - 코드 수정: `modules/github_wif/main.tf`의 WIF pool/provider `project` 필드를 `var.project_number`로 변경. `attribute_condition` 포맷도 GCP 저장 형식(`assertion.repository=='...'`)에 맞춤.
 - 추가 drift: `google_container_cluster.primary.node_config.disk_size_gb = 30 → 20`. default node pool 삭제 후 GCP API가 node_config를 기본값(30GB)으로 반환하기 때문. 실제 workload node는 `google_container_node_pool.primary`가 관리하므로 `lifecycle { ignore_changes = [node_config] }` 추가.
 - WIF description drift: import 당시 description이 GCP에 없어 plan에서 `+ description` 노이즈 발생. 코드에서 description 필드를 제거해 no-op으로 해결.

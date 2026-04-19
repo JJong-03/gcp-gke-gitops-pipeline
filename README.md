@@ -23,7 +23,7 @@
 | Infrastructure | VPC/Subnet, regional GKE, node pool, Artifact Registry, node IAM, GCP API/WIF Terraform definitions |
 | CI | GitHub Actions: Docker build, `main` push 시 Artifact Registry push |
 | CD | Argo CD: `k8s/` manifest를 GKE에 sync |
-| 현재 상태 | Terraform apply, GKE bootstrap, app rollout, Ingress HTTP 200, GitHub Actions image push, Argo CD `Synced/Healthy` 검증 완료. GCP API enablement와 GitHub Actions WIF prerequisite Terraform화 코드는 추가됐고 import/plan 검토가 남아 있음 |
+| 현재 상태 | Terraform apply, GKE bootstrap, app rollout, Ingress HTTP 200, GitHub Actions image push, Argo CD `Synced/Healthy` 검증 완료. GCP API enablement와 GitHub Actions WIF prerequisite Terraform import 완료, post-import plan `No changes.` 확인 |
 
 ## Architecture
 
@@ -104,7 +104,7 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 ## Future Improvements
 
 - Terraform remote backend 구성
-- GCP API enablement와 GitHub OIDC/WIF Terraform import 후 plan 안정화
+- Terraform remote backend 구성 (GCS, state locking)
 - Cloud DNS, static IP, Managed Certificate 기반 HTTPS Ingress
 - image tag 자동 반영 전략
 - Argo CD AppProject/RBAC hardening
