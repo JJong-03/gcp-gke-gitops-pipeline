@@ -2,7 +2,7 @@
 
 이 문서는 `gcp-gke-gitops-pipeline` 프로젝트를 과제 또는 포트폴리오로 제출할 때 사용할 설명 문서다. 단순 작업 기록이 아니라 리뷰어가 무엇을 설계했고, 무엇을 검증했고, 어떤 문제를 해결했는지 빠르게 파악할 수 있도록 정리한다.
 
-실제 검증 세부 기록은 [Validation](07-validation.md), 문제 해결 과정은 [Troubleshooting](08-troubleshooting.md), 캡처 목록은 [Image Capture Checklist](images/README.md)와 [README Validation Evidence](../README.md#validation-evidence)를 기준으로 한다.
+실제 검증 세부 기록은 [Validation](07-validation.md), 문제 해결 과정은 [Troubleshooting](08-troubleshooting.md), 캡처 목록은 [Image Capture Checklist](images/README.md)와 [README Evidence](../README.md#evidence)를 기준으로 한다.
 
 ## Project Summary
 
@@ -34,7 +34,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 | GitHub Actions | OIDC/WIF 수동 구성 후 `main` push workflow가 Artifact Registry image push까지 성공 |
 | Argo CD | Argo CD 설치, Application 생성, `Synced/Healthy`, CI image tag 기반 Deployment rollout 확인 |
 
-검증 캡처는 [docs/images/README.md](images/README.md)에 목록화되어 있고, README의 [Validation Evidence](../README.md#validation-evidence) 섹션에는 주요 캡처가 바로 보이도록 연결되어 있다.
+검증 캡처는 [docs/images/README.md](images/README.md)에 목록화되어 있고, README의 [Evidence](../README.md#evidence) 섹션에는 주요 캡처가 바로 보이도록 연결되어 있다.
 
 ## Troubleshooting Story
 

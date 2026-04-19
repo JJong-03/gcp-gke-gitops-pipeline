@@ -27,7 +27,7 @@
 | 5 | 완료 | 샘플 앱 이미지와 Kubernetes 배포 검증 | 실제 image URI가 수동 반영되고 `Deployment`, `Service`, host rule 없는 `Ingress`, Service NEG annotation/backend 상태, External IP 접근 결과가 기록됨 | `docs/05-app-deployment.md`, `docs/07-validation.md` |
 | 6 | 완료 | GitHub Actions와 Artifact Registry 흐름 정리 | workflow trigger, image URI, GitHub OIDC/WIF 사전조건, secret, push 조건, CI image push 결과가 문서화됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
 | 7 | 완료 | Argo CD GitOps sync 검증 | `argocd-app.yaml` repoURL이 실제 값으로 교체되고 sync/health 결과가 기록됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
-| 8 | 진행 중 | 최종 검증, troubleshooting, 포트폴리오 정리 | 검증 증거와 해결 이슈를 기반으로 README와 portfolio notes가 정리됨 | `docs/08-troubleshooting.md`, `docs/09-portfolio-notes.md`, `README.md` |
+| 8 | 완료 | 최종 검증, troubleshooting, 포트폴리오 정리 | 검증 증거와 해결 이슈를 기반으로 README와 portfolio notes가 정리됨 | `docs/08-troubleshooting.md`, `docs/09-portfolio-notes.md`, `README.md` |
 
 ## 현재 우선순위
 
@@ -47,7 +47,7 @@
 | image tag 업데이트 전략 | 초기 버전은 CI push 후 수동 manifest 갱신, 이후 Argo CD sync | 검증 당시 CI가 push한 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image URI를 반영해 Argo CD sync 완료. 공개 manifest는 placeholder로 복원. 자동 업데이트는 후순위로 유지 | `k8s/deployment.yaml`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
 | 수동 image build/push | 로컬 Docker 기반 smoke test 또는 GitHub Actions WIF 기반 push 중 선택 | 로컬 Docker 기반 수동 smoke test 완료. `sample-app:manual-20260419201633` push, Deployment rollout, GKE pull 검증 완료 | `docs/05-app-deployment.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
 | Ingress 검증 | 초기 버전은 host rule 제거, ClusterIP Service와 GCE Ingress baseline 유지 | Service 생성, NEG 자동 annotation, backend endpoint, Ingress backend/events, external address, HTTP 200 응답 확인 완료 | `k8s/ingress.yaml`, `k8s/service.yaml`, `README.md`, `docs/01-architecture.md`, `docs/05-app-deployment.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
-| 실제 GitHub repository URL | `gitops/argocd-app.yaml`에 실제 repository URL 반영 | 변경분 commit/push 후 Argo CD Application 적용 | `gitops/argocd-app.yaml`, `README.md`, `docs/06-gitops-cicd.md` |
+| 실제 GitHub repository URL | `gitops/argocd-app.yaml`에 실제 repository URL 반영 | 실제 repoURL 유지, Argo CD Application 적용 및 sync/health 검증 완료 | `gitops/argocd-app.yaml`, `README.md`, `docs/06-gitops-cicd.md` |
 
 ## 문서 업데이트 규칙
 

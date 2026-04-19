@@ -73,7 +73,7 @@ Disk cannot be smaller than the chosen image 'gke-1351-gke1396002-cos-125-19216-
   - 1차 수정의 예상 최대 SSD 사용량은 임시 default pool 30GB + 실제 node pool 60GB(2 zone × 1 node × 30GB) = 90GB였으나, `10GB`가 GKE image 최소 크기보다 작아 apply에는 실패했다.
   - 2차 수정 완료 (2026-04-19): cluster 임시 default pool disk size를 `10GB`→`20GB`로 상향. 예상 최대 SSD: 임시 default pool 60GB(3×20) + 실제 node pool 60GB(2×30) = 약 120GB. 250GB quota 내에서 수용 가능하다.
   - Quota 증설 신청은 후순위 개선으로 둔다.
-- 검증: 1차 수정 후 `terraform plan -var="project_id=..."` 실행 완료 (2026-04-19). Plan 결과: `2 to add, 0 to change, 1 to destroy`. 이미 `ERROR` 상태인 cluster는 Terraform이 tainted로 처리하여 교체(destroy → recreate) 계획을 수립했다. 이후 `terraform apply` 재시도는 `disk_size_gb = 10`이 GKE image 최소 크기보다 작아 실패했다. `20GB`로 상향 수정한 뒤 한 줄 `project_id` 값으로 `terraform apply`를 재실행했고, `Apply complete! Resources: 8 added, 0 changed, 0 destroyed.` 결과를 확인했다. 이어서 GKE cluster `RUNNING`, `NUM_NODES=2`를 확인했다. node readiness는 로컬 `kubectl`과 `gke-gcloud-auth-plugin` 설치 후 별도 검증이 필요하다.
+- 검증: 1차 수정 후 `terraform plan -var="project_id=..."` 실행 완료 (2026-04-19). Plan 결과: `2 to add, 0 to change, 1 to destroy`. 이미 `ERROR` 상태인 cluster는 Terraform이 tainted로 처리하여 교체(destroy → recreate) 계획을 수립했다. 이후 `terraform apply` 재시도는 `disk_size_gb = 10`이 GKE image 최소 크기보다 작아 실패했다. `20GB`로 상향 수정한 뒤 한 줄 `project_id` 값으로 `terraform apply`를 재실행했고, `Apply complete! Resources: 8 added, 0 changed, 0 destroyed.` 결과를 확인했다. 이어서 GKE cluster `RUNNING`, `NUM_NODES=2`를 확인했다. 당시에는 로컬 `kubectl`과 `gke-gcloud-auth-plugin` 설치 후 node readiness 검증이 남아 있었고, 이후 두 node 모두 `Ready` 상태로 확인했다.
 - 재발 방지:
   - GKE node pool에 `disk_size_gb` 변수를 추가하고 낮은 기본값을 명시한다.
   - regional cluster의 `node_config.disk_size_gb`도 cluster resource에 명시해 임시 default pool의 SSD 사용량을 통제하되, GKE node image 최소 크기보다 작은 값은 사용하지 않는다.
@@ -411,7 +411,7 @@ gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_ID}" \
     - provider `projects/[PROJECT_NUMBER]/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline` state `ACTIVE`
     - provider attribute condition `assertion.repository=='[OWNER]/[REPOSITORY]'`
     - deploy service account IAM policy에서 repository-scoped `roles/iam.workloadIdentityUser` principal binding 확인
-  - 아직 필요한 검증:
+  - 당시 남은 검증:
     - GitHub repository variables/secrets 등록
     - GitHub Actions `workflow_dispatch` build-only 및 `main` push image push 검증
 - 재발 방지:
