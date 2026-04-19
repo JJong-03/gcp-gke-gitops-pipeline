@@ -18,7 +18,8 @@
 | 단계 | 명령/확인 항목 | 기대 결과 | 실제 결과 | 상태 | 증거/링크 | 관련 문서 |
 |---|---|---|---|---|---|---|
 | GCP API enablement | `gcloud services enable compute.googleapis.com container.googleapis.com artifactregistry.googleapis.com serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com` | 필요한 API가 활성화됨 | 수동 활성화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
-| GitHub OIDC/WIF prerequisite | Workload Identity Provider, deploy service account, `roles/iam.workloadIdentityUser`, GitHub secrets 확인 | GitHub Actions가 service account로 인증 가능 | deploy service account, Artifact Registry writer 권한, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료. GitHub variables/secrets 등록은 다음 단계 | 완료 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
+| GitHub OIDC/WIF GCP prerequisite | Workload Identity Provider, deploy service account, `roles/iam.workloadIdentityUser` 확인 | GitHub Actions가 service account로 인증 가능한 GCP 측 사전조건 구성 | deploy service account, Artifact Registry writer 권한, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료 | 완료 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
+| GitHub repository variables/secrets | Repository Actions variables/secrets 확인 | workflow가 project/region/repository 값과 WIF secret을 사용할 수 있음 | 미확인. initial push workflow가 7초 만에 `Build image` job에서 실패해 variables 미등록 가능성이 높음 | 대기 | GitHub Actions run #1 | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
 | Terraform init | `terraform init` | provider와 module 초기화 성공 | `hashicorp/google v5.45.2` 설치, 모듈 초기화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform validate | `terraform validate` | Terraform syntax와 provider schema 검증 성공 | `Success! The configuration is valid.` | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform plan (1차) | `terraform plan -var="project_id=..."` | VPC, subnet, GKE, Artifact Registry 생성 계획 확인 | 8 resources to add. `readers["gke_node"]` key가 정적 map으로 정상 resolve됨 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
@@ -41,7 +42,8 @@
 | Ingress | `kubectl get ingress sample-app` | host rule 없는 Ingress의 external address 또는 provisioning 상태 확인 | GKE class annotation 반영 후 External IP 할당 완료. hosts `*`, port `80` | 완료 | 2026-04-19 local | `docs/05-app-deployment.md`, `docs/08-troubleshooting.md` |
 | Ingress backend/events | `kubectl describe ingress sample-app`, `gcloud compute backend-services get-health` | backend 연결 상태와 events 확인 | UrlMap, TargetProxy, ForwardingRule 생성. sample app backend `HEALTHY` 확인 | 완료 | 2026-04-19 local | `docs/05-app-deployment.md` |
 | External access | External IP HTTP 접근 확인 | placeholder app 응답 확인 | 전파 대기 후 `curl http://[INGRESS_IP]/`에서 `HTTP/1.1 200 OK`, `Via: 1.1 google`, placeholder HTML 응답 확인 | 완료 | 2026-04-19 local | `docs/05-app-deployment.md` |
-| GitHub Actions build | workflow `build` job 확인 | Docker image build 성공 | 미실행 | 대기 | TODO | `docs/06-gitops-cicd.md` |
+| GitHub repository push | `git push -u origin main`, GitHub repository 확인 | main branch에 repository baseline push | GitHub repository `JJong-03/gcp-gke-gitops-pipeline`에 commit `c28b5d1` push 완료, workflow run #1 생성 | 완료 | 2026-04-19 GitHub | `docs/06-gitops-cicd.md` |
+| GitHub Actions build | workflow `build` job 확인 | Docker image build 성공 | Initial push의 workflow run #1에서 `Build image` job 실패, total duration 7s. GitHub variables/secrets 등록 후 rerun 필요 | 실패 | GitHub Actions run #1, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
 | Artifact Registry push (CI) | GitHub Actions workflow `push` job 또는 registry 확인 | `sample-app:${GITHUB_SHA}` image push 확인 | 미실행 | 대기 | TODO | `docs/06-gitops-cicd.md` |
 | Argo CD sync | Argo CD Application 확인 | sync status `Synced`, health `Healthy` | 미실행 | 대기 | TODO | `docs/06-gitops-cicd.md` |
 
@@ -311,6 +313,20 @@
 - 실제 결과: `roles/iam.workloadIdentityUser` principal binding과 `roles/artifactregistry.writer` service account binding 확인
 - 상태: 완료
 - 다음 검증: GitHub repository variables/secrets 등록 후 `workflow_dispatch` build-only, `main` push image push 확인
+
+### 2026-04-19 - GitHub repository push와 Actions run #1
+
+- 명령: `git push -u origin main`
+- 기대 결과: GitHub repository `JJong-03/gcp-gke-gitops-pipeline`의 `main` branch에 baseline commit push
+- 실제 결과: commit `c28b5d1084c496897667321df6102090f9ad0150` push 완료. GitHub Actions workflow run #1 생성.
+- 상태: 완료
+
+- 확인: GitHub Actions run `Build GKE GitOps pipeline baseline #1`
+- 기대 결과: `push` event에서 `build` job 성공 후 `push` job이 Artifact Registry에 image push
+- 실제 결과: workflow run #1은 `Status Failure`, total duration 7s. `Build image` job이 exit code 1로 실패했고 `Push image` job은 실행되지 않음. GitHub repository variables/secrets 등록 전 push되어 `Validate workflow configuration` 단계에서 실패했을 가능성이 높음.
+- 상태: 실패
+- 관련 이슈: `docs/08-troubleshooting.md` — GitHub Actions initial push가 repository variables/secrets 등록 전 실패
+- 다음 검증: GitHub Actions variables/secrets 등록 후 workflow run #1 rerun 또는 빈 commit push로 재검증
 
 ## 증거 기록 기준
 

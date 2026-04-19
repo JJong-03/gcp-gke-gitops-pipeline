@@ -421,6 +421,71 @@ gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_ID}" \
   - 이미 생성된 GCP 리소스는 재생성하지 말고 `describe`/`list`로 상태를 확인한 뒤 실패한 단계부터 이어간다.
 - 관련 validation 항목: `docs/07-validation.md`의 `GitHub OIDC/WIF prerequisite`
 
+### 2026-04-19 - GitHub Actions initial push가 variables/secrets 등록 전 실패
+
+- 발생 시점: `git push -u origin main` 후 GitHub Actions `CI #1` 실행
+- 관련 영역: GitHub Actions, repository variables/secrets, CI image build
+- 영향 범위: repository push는 성공했고 workflow run은 생성됐지만, `build` job이 실패해 Docker image build와 Artifact Registry push 검증이 완료되지 않음
+- 증상:
+  - GitHub repository `JJong-03/gcp-gke-gitops-pipeline`에 commit `c28b5d1` push 완료
+  - GitHub Actions run `Build GKE GitOps pipeline baseline #1` 생성
+  - run #1 status `Failure`, total duration `7s`
+  - `Build image` job이 exit code `1`
+  - `Push image` job은 `0s`로 실행되지 않음
+- 확인한 명령/로그:
+
+```text
+git remote -v
+origin  https://github.com/JJong-03/gcp-gke-gitops-pipeline.git (fetch)
+origin  https://github.com/JJong-03/gcp-gke-gitops-pipeline.git (push)
+
+git rev-parse HEAD
+c28b5d1084c496897667321df6102090f9ad0150
+```
+
+```text
+GitHub Actions
+Build GKE GitOps pipeline baseline #1
+Triggered via push
+Status Failure
+Total duration 7s
+Build image: Process completed with exit code 1
+Push image: 0s
+```
+
+- 원인:
+  - 현재 local 환경에는 `gh` CLI가 없어 GitHub variables/secrets 등록 상태를 CLI로 직접 확인하지 못했다.
+  - workflow의 첫 job은 `GCP_PROJECT_ID`, `GCP_REGION`, `ARTIFACT_REGISTRY_REPOSITORY` 값을 검증한다. initial push 전에 GitHub repository variables/secrets를 등록하지 않았다면 `GCP_PROJECT_ID`가 비어 있어 의도한 fail-fast 검증에서 실패한다.
+  - public GitHub page에서는 sign-in 없이 상세 step log를 볼 수 없어 정확한 실패 line은 GitHub UI에서 확인해야 한다. 현재 관측 정보상 repository variables 미등록이 가장 가능성이 높다.
+- 해결:
+  - GitHub repository settings에서 Actions variables/secrets를 등록한다.
+
+```text
+Variables:
+GCP_PROJECT_ID = warm-castle-493809-s1
+GCP_REGION = asia-northeast3
+ARTIFACT_REGISTRY_REPOSITORY = gke-gitops-images
+
+Secrets:
+GCP_WORKLOAD_IDENTITY_PROVIDER = projects/258687934668/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline
+GCP_SERVICE_ACCOUNT = github-actions-deploy@[PROJECT_ID].iam.gserviceaccount.com
+```
+
+  - 등록 후 GitHub Actions run #1에서 `Re-run all jobs`를 실행하거나, 아래처럼 빈 commit으로 새 push event를 만든다.
+
+```bash
+git commit --allow-empty -m "Trigger CI workflow"
+git push
+```
+
+- 검증:
+  - 아직 미완료. 다음 run에서 `build` job 성공, `push` job 성공, Artifact Registry에 `sample-app:${GITHUB_SHA}` tag 생성 확인 필요.
+- 재발 방지:
+  - 첫 push 전에 repository variables/secrets를 먼저 등록한다.
+  - workflow에 둔 `Validate workflow configuration` 단계는 변수 누락을 빠르게 드러내기 위한 의도적 fail-fast 단계이므로 유지한다.
+  - public page에서 logs가 제한되면 GitHub에 로그인한 상태로 run detail을 확인한다.
+- 관련 validation 항목: `docs/07-validation.md`의 `GitHub repository variables/secrets`, `GitHub Actions build`, `Artifact Registry push (CI)`
+
 ## 기록 대상
 
 | 영역 | 기록할 예시 |

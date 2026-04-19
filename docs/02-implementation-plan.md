@@ -31,9 +31,9 @@
 
 ## 현재 우선순위
 
-1. **즉시**: GitHub OIDC/WIF prerequisite를 실제 repository 기준으로 구성하거나, 이미 구성됐다면 secret과 IAM binding을 확인한다.
-2. GitHub Actions `workflow_dispatch`로 build-only 동작을 확인한다.
-3. `main` branch push 기반 workflow에서 Artifact Registry image push를 검증한다.
+1. **즉시**: GitHub repository Actions variables/secrets를 등록한다.
+2. 실패한 GitHub Actions run #1을 `Re-run all jobs`로 재실행하거나 빈 commit을 push한다.
+3. `build` job과 `push` job 성공, Artifact Registry image push 결과를 확인한다.
 4. 검증 결과를 `docs/07-validation.md`에 기록하고, 실패 시 `docs/08-troubleshooting.md`에 원인과 해결을 남긴다.
 
 ## 결정 완료 및 남은 검증
@@ -42,7 +42,7 @@
 |---|---|---|---|
 | GKE node locations | regional cluster에 `asia-northeast3-a`, `asia-northeast3-c` 명시 | Terraform apply 완료, `kubectl get nodes`에서 node 2개 `Ready` 확인 완료 | `terraform/modules/gke/*`, `terraform/variables.tf`, `terraform/main.tf`, `README.md`, `CLAUDE.md`, `docs/01-architecture.md`, `docs/03-terraform-plan.md` |
 | GKE node service account IAM | 별도 node service account 생성 후 project-level `roles/container.defaultNodeServiceAccount`와 Artifact Registry repository-scoped `roles/artifactregistry.reader` 부여 | Terraform apply, 실제 IAM policy 조회, GKE image pull 검증 완료 | `terraform/modules/gke/*`, `terraform/modules/artifact_registry/*`, `docs/03-terraform-plan.md`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
-| GitHub Actions 인증 | GitHub OIDC + Workload Identity Federation 사용, 초기 버전은 수동 사전조건 | deploy service account, Artifact Registry writer binding, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료. GitHub variables/secrets 등록 필요 | `.github/workflows/ci.yml`, `README.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
+| GitHub Actions 인증 | GitHub OIDC + Workload Identity Federation 사용, 초기 버전은 수동 사전조건 | deploy service account, Artifact Registry writer binding, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료. GitHub variables/secrets 등록과 workflow rerun 필요 | `.github/workflows/ci.yml`, `README.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
 | GCP API enablement | 초기 버전은 사전 수동 활성화 | `sts.googleapis.com` 포함 API 목록 문서화 및 실제 활성화 결과 기록 완료 | `README.md`, `docs/03-terraform-plan.md`, `docs/07-validation.md` |
 | image tag 업데이트 전략 | 초기 버전은 CI push 후 수동 manifest 갱신, 이후 Argo CD sync | `sample-app:manual-20260419201633` image URI 수동 반영 완료. 자동 업데이트는 후순위로 유지 | `k8s/deployment.yaml`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
 | 수동 image build/push | 로컬 Docker 기반 smoke test 또는 GitHub Actions WIF 기반 push 중 선택 | 로컬 Docker 기반 수동 smoke test 완료. `sample-app:manual-20260419201633` push, Deployment rollout, GKE pull 검증 완료 | `docs/05-app-deployment.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
