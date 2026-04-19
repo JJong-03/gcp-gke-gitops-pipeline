@@ -100,10 +100,10 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 | [Validation](docs/07-validation.md) | 실제 검증 기록 |
 | [Troubleshooting](docs/08-troubleshooting.md) | 장애 원인, 해결, 재발 방지 |
 | [Portfolio Notes](docs/09-portfolio-notes.md) | 발표/면접용 설명 포인트 |
+| [Reproduction Runbook](docs/10-reproduction-runbook.md) | 처음부터 다시 따라 실행하는 절차 |
 
 ## Future Improvements
 
-- Terraform remote backend 구성
 - Terraform remote backend 구성 (GCS, state locking)
 - Cloud DNS, static IP, Managed Certificate 기반 HTTPS Ingress
 - image tag 자동 반영 전략
