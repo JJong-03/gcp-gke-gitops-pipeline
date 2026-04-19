@@ -148,7 +148,8 @@ gcp-gke-gitops-pipeline/
    ├─ 06-gitops-cicd.md
    ├─ 07-validation.md
    ├─ 08-troubleshooting.md
-   └─ 09-portfolio-notes.md
+   ├─ 09-portfolio-notes.md
+   └─ 10-reproduction-runbook.md
 ```
 
 Do not rename stable directories or documentation files casually once they are referenced by `README.md` and other docs.
@@ -170,6 +171,7 @@ Do not rename stable directories or documentation files casually once they are r
 | `docs/07-validation.md` | executed validation commands, expected results, actual results, evidence |
 | `docs/08-troubleshooting.md` | issues, root causes, fixes, verification, prevention notes |
 | `docs/09-portfolio-notes.md` | portfolio talking points, lessons learned, and future improvements |
+| `docs/10-reproduction-runbook.md` | repeatable from-scratch execution procedure, verification commands, cleanup steps, and common failure points |
 | `AGENTS.md` | AI-assisted role split, working rules, and editing guidance |
 
 Documentation must describe the current implementation honestly. Do not present planned or placeholder work as completed.
@@ -248,6 +250,7 @@ Documentation must describe the current implementation honestly. Do not present 
 5. Update `docs/02-implementation-plan.md` when phase status or next work changes.
 6. Update `docs/07-validation.md` with actual validation results, not only intended commands.
 7. Update `docs/08-troubleshooting.md` when a meaningful issue is found and resolved.
+8. Update `docs/10-reproduction-runbook.md` when the repeatable execution or cleanup procedure changes.
 
 ---
 
@@ -268,7 +271,7 @@ At minimum, validation should include:
 - Artifact Registry image confirmation
 - Argo CD sync/application health
 
-Validation results belong in `docs/07-validation.md`. Failures with useful lessons belong in `docs/08-troubleshooting.md`.
+Validation results belong in `docs/07-validation.md`. Failures with useful lessons belong in `docs/08-troubleshooting.md`. Repeatable from-scratch execution and cleanup steps belong in `docs/10-reproduction-runbook.md`.
 
 ---
 
@@ -308,7 +311,9 @@ Follow this order unless there is a strong reason to change it:
 9. Validate the end-to-end flow:
    - `docs/07-validation.md`
    - `docs/08-troubleshooting.md`
-10. Refine portfolio-facing narrative:
+10. Maintain the reproduction runbook:
+   - `docs/10-reproduction-runbook.md`
+11. Refine portfolio-facing narrative:
    - `README.md`
    - `docs/09-portfolio-notes.md`
 
@@ -328,7 +333,8 @@ This project is complete when:
 - Docs explain the architecture, workflow, and decisions clearly.
 - Validation evidence is recorded in `docs/07-validation.md`.
 - Troubleshooting evidence is recorded in `docs/08-troubleshooting.md` when relevant.
-- `README.md`, `CLAUDE.md`, `AGENTS.md`, and `docs/00` through `docs/09` do not contradict the implementation.
+- Reproduction steps and cleanup procedure are documented in `docs/10-reproduction-runbook.md`.
+- `README.md`, `CLAUDE.md`, `AGENTS.md`, and `docs/00` through `docs/10` do not contradict the implementation.
 
 ---
 

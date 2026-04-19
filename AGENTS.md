@@ -23,7 +23,7 @@ Use these sources together rather than treating stale documentation as automatic
 1. Implementation files show what currently exists.
 2. `README.md` summarizes the current external-facing repository state.
 3. `CLAUDE.md` defines project principles, scope, architecture direction, and completion criteria.
-4. `docs/00` through `docs/09` provide topic-specific plans, procedures, validation records, and portfolio notes.
+4. `docs/00` through `docs/10` provide topic-specific plans, procedures, validation records, troubleshooting notes, portfolio notes, and reproduction guidance.
 5. `AGENTS.md` defines how AI agents should work in this repository.
 
 If a doc conflicts with the implementation or `README.md`, do not blindly follow the stale doc. Identify the mismatch, update the relevant doc in the same phase, and keep `CLAUDE.md` aligned when the conflict affects project scope or architecture.
@@ -138,7 +138,9 @@ Follow this sequence unless there is a strong reason to change it:
 10. Run validation and troubleshooting updates:
    - `docs/07-validation.md`
    - `docs/08-troubleshooting.md`
-11. Refine portfolio-facing notes:
+11. Maintain the from-scratch reproduction runbook:
+   - `docs/10-reproduction-runbook.md`
+12. Refine portfolio-facing notes:
    - `README.md`
    - `docs/09-portfolio-notes.md`
 
@@ -218,6 +220,7 @@ Documentation work must stay honest about project status. Planned work belongs i
 | GitHub Actions, Artifact Registry, or Argo CD flow changes | `docs/06-gitops-cicd.md` |
 | executed checks and evidence | `docs/07-validation.md` |
 | meaningful failures, fixes, and prevention notes | `docs/08-troubleshooting.md` |
+| repeatable from-scratch execution, verification commands, cleanup procedure, or common failure points | `docs/10-reproduction-runbook.md` |
 | portfolio talking points or future improvements | `docs/09-portfolio-notes.md`, `README.md` |
 
 ---
@@ -241,7 +244,7 @@ Expected checkpoints include:
 - Artifact Registry image check
 - Argo CD sync/application health
 
-Record actual validation results in `docs/07-validation.md`. Record useful failure analysis in `docs/08-troubleshooting.md`.
+Record actual validation results in `docs/07-validation.md`. Record useful failure analysis in `docs/08-troubleshooting.md`. Keep repeatable execution and cleanup procedures in `docs/10-reproduction-runbook.md`.
 
 ---
 

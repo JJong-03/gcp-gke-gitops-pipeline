@@ -108,4 +108,4 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 - Cloud DNS, static IP, Managed Certificate 기반 HTTPS Ingress
 - image tag 자동 반영 전략
 - Argo CD AppProject/RBAC hardening
-- 비용 정리와 cleanup 절차 문서화
+- cleanup 절차 자동화와 비용 추정 보강
