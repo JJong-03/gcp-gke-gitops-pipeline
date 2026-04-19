@@ -488,6 +488,55 @@ git push
   - public page에서 logs가 제한되면 GitHub에 로그인한 상태로 run detail을 확인한다.
 - 관련 validation 항목: `docs/07-validation.md`의 `GitHub repository variables/secrets`, `GitHub Actions build`, `Artifact Registry push (CI)`
 
+### 2026-04-19 - Argo CD sync 후 Deployment rollout Pending
+
+- 발생 시점: Argo CD Application을 적용하고 `k8s/deployment.yaml` image를 CI tag로 sync한 직후
+- 관련 영역: Argo CD, Kubernetes Deployment rolling update, GKE node resource
+- 영향 범위: Argo CD Application은 `Synced`, operation phase는 `Succeeded`였지만 health가 `Progressing`으로 남음. Deployment rollout이 완료되지 않아 CI image tag로 완전히 교체되지 않음.
+- 증상:
+  - `kubectl -n argocd get application gke-gitops-pipeline`에서 sync는 `Synced`, health는 `Progressing`
+  - `kubectl rollout status deployment/sample-app`가 대기 상태
+  - 새 ReplicaSet `sample-app-64b9966587`의 pod가 `Pending`
+  - event에 `0/2 nodes are available: 2 Insufficient cpu`
+- 확인한 명령/로그:
+
+```text
+kubectl get deploy,rs,pods -o wide
+deployment.apps/sample-app   READY 2/2   UP-TO-DATE 1   AVAILABLE 2
+replicaset.apps/sample-app-58864d4f5    DESIRED 2   READY 2
+replicaset.apps/sample-app-64b9966587   DESIRED 1   READY 0
+pod/sample-app-64b9966587-...           0/1 Pending
+```
+
+```text
+Warning FailedScheduling pod/sample-app-64b9966587-...
+0/2 nodes are available: 2 Insufficient cpu.
+```
+
+- 원인:
+  - Deployment 기본 RollingUpdate 전략은 `maxSurge=25%`, `maxUnavailable=25%`다.
+  - `replicas=2`에서는 rollout 중 추가 pod 1개를 먼저 만들 수 있다.
+  - 현재 비용 통제를 위해 2개 node만 사용하는 작은 `e2-medium` node pool이며, Argo CD/Ingress/GKE system pod와 기존 sample app pod가 이미 CPU를 사용하고 있어 surge pod를 스케줄링할 여유가 없었다.
+- 해결:
+  - 최소 노드 클러스터에 맞게 Deployment rolling update 전략을 명시한다.
+
+```yaml
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+```
+
+  - 이 전략은 rollout 중 기존 pod 하나를 먼저 줄이고 새 pod를 올리므로 추가 surge pod가 필요하지 않다.
+- 검증:
+  - 진행 중. 변경분을 Git에 push한 뒤 Argo CD 자동 sync와 Deployment rollout 완료를 확인해야 한다.
+- 재발 방지:
+  - 작은 fixed-size node pool에서 `replicas`가 2 이상인 workload는 기본 rolling update surge로 인해 일시적으로 리소스가 부족할 수 있다.
+  - 포트폴리오 초기 baseline에서는 비용 통제를 우선하므로 node 증설보다 rollout strategy를 명시해 검증 가능성을 높인다.
+  - production에서는 node autoscaling, 적절한 resource request, PodDisruptionBudget, rollout strategy를 함께 설계한다.
+- 관련 validation 항목: `docs/07-validation.md`의 `Argo CD sync`
+
 ## 기록 대상
 
 | 영역 | 기록할 예시 |

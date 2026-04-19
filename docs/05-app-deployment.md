@@ -51,7 +51,7 @@ asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:manual-
 
 | 파일 | 역할 | 기준 |
 |---|---|---|
-| `k8s/deployment.yaml` | sample app Pod 관리 | `replicas: 2`, container port `80`, readiness/liveness probe `/`, resource request/limit 설정 |
+| `k8s/deployment.yaml` | sample app Pod 관리 | `replicas: 2`, container port `80`, readiness/liveness probe `/`, resource request/limit 설정, 최소 노드 클러스터에 맞춘 rolling update `maxSurge: 0`, `maxUnavailable: 1` |
 | `k8s/service.yaml` | cluster 내부 노출 | `ClusterIP`, port `80`, selector `app: sample-app`, manifest에는 명시적 NEG annotation 없음 |
 | `k8s/ingress.yaml` | 외부 HTTP 접근 | host rule 없음, `kubernetes.io/ingress.class: "gce"` annotation 사용, path `/`가 `sample-app` Service의 `http` port로 연결 |
 
