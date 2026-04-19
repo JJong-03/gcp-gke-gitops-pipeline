@@ -530,11 +530,48 @@ strategy:
 
   - 이 전략은 rollout 중 기존 pod 하나를 먼저 줄이고 새 pod를 올리므로 추가 surge pod가 필요하지 않다.
 - 검증:
-  - 진행 중. 변경분을 Git에 push한 뒤 Argo CD 자동 sync와 Deployment rollout 완료를 확인해야 한다.
+  - 완료. `maxSurge: 0`, `maxUnavailable: 1` 변경을 commit `13572bdb7928e7bd59393738091bd925e06b1163`으로 push한 뒤 Argo CD hard refresh를 실행했다.
+  - Argo CD Application은 `Synced/Healthy`, revision `13572bdb7928e7bd59393738091bd925e06b1163`으로 확인됐다.
+  - Deployment는 `READY=2/2`, `UP-TO-DATE=2`, `AVAILABLE=2`로 rollout 완료됐다.
+  - 새 ReplicaSet `sample-app-64b9966587` pod 2개가 `Running`이며, CI image tag `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f`로 실행된다.
+  - External IP HTTP 접근도 `HTTP/1.1 200 OK`로 재확인했다.
 - 재발 방지:
   - 작은 fixed-size node pool에서 `replicas`가 2 이상인 workload는 기본 rolling update surge로 인해 일시적으로 리소스가 부족할 수 있다.
   - 포트폴리오 초기 baseline에서는 비용 통제를 우선하므로 node 증설보다 rollout strategy를 명시해 검증 가능성을 높인다.
   - production에서는 node autoscaling, 적절한 resource request, PodDisruptionBudget, rollout strategy를 함께 설계한다.
+- 관련 validation 항목: `docs/07-validation.md`의 `Argo CD sync`
+
+### 2026-04-19 - Argo CD install CRD annotation too long
+
+- 발생 시점: Argo CD 공식 install manifest를 client-side apply로 적용하는 단계
+- 관련 영역: Argo CD bootstrap, Kubernetes CRD, kubectl apply 방식
+- 영향 범위: Argo CD 리소스 대부분은 생성됐지만 `applicationsets.argoproj.io` CRD 적용이 실패하여 설치가 완전히 끝나지 않음
+- 증상:
+
+```text
+The CustomResourceDefinition "applicationsets.argoproj.io" is invalid:
+metadata.annotations: Too long: may not be more than 262144 bytes
+```
+
+- 원인:
+  - 일반 `kubectl apply`는 client-side apply metadata를 annotation에 저장한다.
+  - Argo CD의 일부 CRD는 schema가 커서 client-side apply annotation 크기 제한을 초과할 수 있다.
+- 해결:
+  - 같은 공식 manifest를 server-side apply로 다시 적용했다.
+
+```bash
+kubectl apply --server-side --force-conflicts \
+  -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+- 검증:
+  - CRD, RBAC, services, deployments, statefulset, networkpolicy 모두 server-side apply 완료
+  - `argocd` namespace의 pod 7개가 모두 `Running`
+  - `argocd-server`, `argocd-repo-server`, `argocd-application-controller` rollout 완료
+- 재발 방지:
+  - Argo CD처럼 CRD schema가 큰 manifest는 server-side apply를 우선 사용한다.
+  - client-side apply의 annotation size 오류가 나면 리소스를 수동으로 삭제하기보다 server-side apply로 같은 desired state를 재적용한다.
 - 관련 validation 항목: `docs/07-validation.md`의 `Argo CD sync`
 
 ## 기록 대상

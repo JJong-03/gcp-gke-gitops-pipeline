@@ -151,13 +151,21 @@ gitops/argocd-app.yaml
 | Target namespace | `default` |
 | Sync policy | automated prune/selfHeal |
 
-Argo CD 설치와 cluster bootstrap은 아직 검증되지 않았다. `repoURL`은 실제 GitHub repository URL로 교체됐다.
+Argo CD 설치와 cluster bootstrap은 검증됐다. `repoURL`은 실제 GitHub repository URL로 교체됐고, Application `gke-gitops-pipeline`은 revision `13572bdb7928e7bd59393738091bd925e06b1163` 기준 `Synced/Healthy` 상태를 확인했다.
+
+설치 중 `applicationsets.argoproj.io` CRD가 client-side apply annotation size 제한에 걸려 실패했으므로, 최종 설치는 server-side apply로 완료했다.
+
+```bash
+kubectl apply --server-side --force-conflicts \
+  -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
 
 ## 보류 중인 결정
 
 | 항목 | 현재 상태 | 선택지 |
 |---|---|---|
-| workflow env 관리 | placeholder | repository variables/environment로 이동 |
+| workflow env 관리 | repository variables | GitHub Actions variables로 `GCP_PROJECT_ID`, `GCP_REGION`, `ARTIFACT_REGISTRY_REPOSITORY` 관리 |
 | Argo CD 설치 방식 | 미정 | 수동 설치, Helm, 공식 manifest 적용 중 선택 |
 | 배포 namespace | `default` | 초기 버전 유지 또는 별도 namespace 도입 |
 

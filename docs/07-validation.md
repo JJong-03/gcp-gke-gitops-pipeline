@@ -45,7 +45,7 @@
 | GitHub repository push | `git push -u origin main`, GitHub repository 확인 | main branch에 repository baseline push | GitHub repository `JJong-03/gcp-gke-gitops-pipeline`에 commit `c28b5d1` push 완료, workflow run #1 생성 | 완료 | 2026-04-19 GitHub | `docs/06-gitops-cicd.md` |
 | GitHub Actions build | workflow `build` job 확인 | Docker image build 성공 | commit `e3a889e...` push 후 Artifact Registry에 matching image tag가 생성되어 build/push flow 성공 확인 | 완료 | 2026-04-19 GitHub/GCP | `docs/06-gitops-cicd.md` |
 | Artifact Registry push (CI) | GitHub Actions workflow `push` job 또는 registry 확인 | `sample-app:${GITHUB_SHA}` image push 확인 | `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` 생성 확인. Digest `sha256:5612a9a865a5037fbf4c0a3f742251ed54d54f9396d2e517544f000efcb3c001` | 완료 | 2026-04-19 GCP | `docs/06-gitops-cicd.md` |
-| Argo CD sync | Argo CD Application 확인 | sync status `Synced`, health `Healthy` | 미실행 | 대기 | TODO | `docs/06-gitops-cicd.md` |
+| Argo CD sync | Argo CD Application 확인 | sync status `Synced`, health `Healthy` | Argo CD 설치 후 Application `Synced/Healthy`, revision `13572bdb7928e7bd59393738091bd925e06b1163`, Deployment `2/2` rollout 완료 | 완료 | 2026-04-19 local/GKE | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
 
 ## 실행 기록 템플릿
 
@@ -342,6 +342,55 @@
 
 - 참고: 기존 수동 push tag `manual-20260419201633`도 repository에 유지됨.
 - 다음 검증: `k8s/deployment.yaml` image를 CI tag로 수동 갱신하고, Argo CD가 Git desired state를 sync하는지 확인
+
+### 2026-04-19 - Argo CD 설치와 GitOps sync 검증
+
+- 명령: `kubectl create namespace argocd`
+- 기대 결과: Argo CD 설치 namespace 생성
+- 실제 결과: `namespace/argocd created`
+- 상태: 완료
+
+- 명령: `kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml`
+- 기대 결과: Argo CD CRD와 controller/server/repo-server 리소스 생성
+- 실제 결과: 대부분의 리소스는 생성됐지만 `applicationsets.argoproj.io` CRD에서 `metadata.annotations: Too long` 오류 발생
+- 상태: 실패 후 해결
+- 관련 이슈: `docs/08-troubleshooting.md` — Argo CD install CRD annotation too long
+
+- 명령: `kubectl apply --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml`
+- 기대 결과: 대형 CRD를 server-side apply로 적용
+- 실제 결과: Argo CD CRD, RBAC, service, deployment, statefulset, networkpolicy 리소스 server-side apply 완료
+- 상태: 완료
+
+- 명령: `kubectl -n argocd get pods`, `kubectl -n argocd rollout status deployment/argocd-server`, `deployment/argocd-repo-server`, `statefulset/argocd-application-controller`
+- 기대 결과: Argo CD 핵심 pod와 controller rollout 완료
+- 실제 결과: Argo CD pod 7개 모두 `Running`. `argocd-server`, `argocd-repo-server`, `argocd-application-controller` rollout 완료
+- 상태: 완료
+
+- 명령: `kubectl apply -f gitops/argocd-app.yaml`
+- 기대 결과: Argo CD Application 생성
+- 실제 결과: `application.argoproj.io/gke-gitops-pipeline created`
+- 상태: 완료
+
+- 명령: `kubectl -n argocd get application gke-gitops-pipeline`
+- 기대 결과: `Synced/Healthy`
+- 실제 결과: 최초에는 `OutOfSync/Healthy`, 이후 `Synced/Progressing`. Operation phase는 `Succeeded`, resource status는 Service/Deployment/Ingress 모두 `Synced`
+- 상태: 부분 완료
+
+- 명령: `kubectl get deploy,rs,pods -o wide`, `kubectl get events --sort-by=.lastTimestamp`
+- 기대 결과: sample app Deployment가 CI image tag로 rollout 완료
+- 실제 결과: 새 CI image ReplicaSet pod가 `Pending`, event `0/2 nodes are available: 2 Insufficient cpu`. 기본 rolling update surge로 3번째 pod를 만들 수 없어 rollout이 멈춤.
+- 상태: 실패 후 해결
+- 관련 이슈: `docs/08-troubleshooting.md` — Argo CD sync 후 Deployment rollout Pending
+
+- 변경: `k8s/deployment.yaml`에 `strategy.rollingUpdate.maxSurge: 0`, `maxUnavailable: 1` 추가 후 commit `13572bdb7928e7bd59393738091bd925e06b1163` push. Argo CD hard refresh 실행.
+- 기대 결과: 추가 surge pod 없이 rolling update 진행
+- 실제 결과: Argo CD Application `Synced/Healthy`, revision `13572bdb7928e7bd59393738091bd925e06b1163`. Deployment `sample-app` rollout 성공, `READY=2/2`, `UP-TO-DATE=2`, `AVAILABLE=2`, new ReplicaSet `sample-app-64b9966587` `2/2 Ready`. Image `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f`로 실행.
+- 상태: 완료
+
+- 명령: `curl -i http://[INGRESS_IP]/`
+- 기대 결과: GitOps sync 후에도 External IP에서 placeholder app 응답
+- 실제 결과: `HTTP/1.1 200 OK`, `Via: 1.1 google`, placeholder HTML 응답 확인
+- 상태: 완료
 
 ## 증거 기록 기준
 

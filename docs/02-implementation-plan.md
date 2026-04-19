@@ -26,15 +26,15 @@
 | 4 | 완료 | GKE 접속과 bootstrap 점검 | `gcloud container clusters get-credentials`, `kubectl get nodes`, `kubectl get pods -A` 결과가 기록됨 | `docs/04-gke-bootstrap.md`, `docs/07-validation.md` |
 | 5 | 완료 | 샘플 앱 이미지와 Kubernetes 배포 검증 | 실제 image URI가 수동 반영되고 `Deployment`, `Service`, host rule 없는 `Ingress`, Service NEG annotation/backend 상태, External IP 접근 결과가 기록됨 | `docs/05-app-deployment.md`, `docs/07-validation.md` |
 | 6 | 완료 | GitHub Actions와 Artifact Registry 흐름 정리 | workflow trigger, image URI, GitHub OIDC/WIF 사전조건, secret, push 조건, CI image push 결과가 문서화됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
-| 7 | 진행 중 | Argo CD GitOps sync 검증 | `argocd-app.yaml` repoURL이 실제 값으로 교체되고 sync/health 결과가 기록됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
-| 8 | 대기 | 최종 검증, troubleshooting, 포트폴리오 정리 | 검증 증거와 해결 이슈를 기반으로 README와 portfolio notes가 정리됨 | `docs/08-troubleshooting.md`, `docs/09-portfolio-notes.md`, `README.md` |
+| 7 | 완료 | Argo CD GitOps sync 검증 | `argocd-app.yaml` repoURL이 실제 값으로 교체되고 sync/health 결과가 기록됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
+| 8 | 진행 중 | 최종 검증, troubleshooting, 포트폴리오 정리 | 검증 증거와 해결 이슈를 기반으로 README와 portfolio notes가 정리됨 | `docs/08-troubleshooting.md`, `docs/09-portfolio-notes.md`, `README.md` |
 
 ## 현재 우선순위
 
-1. **즉시**: `gitops/argocd-app.yaml`의 실제 repository URL과 `k8s/deployment.yaml`의 CI image tag 변경을 commit/push한다.
-2. Argo CD를 `argocd` namespace에 설치한다.
-3. `gitops/argocd-app.yaml`을 적용하고 Argo CD Application sync/health를 확인한다.
-4. 검증 결과를 `docs/07-validation.md`에 기록하고, 실패 시 `docs/08-troubleshooting.md`에 원인과 해결을 남긴다.
+1. **즉시**: 최종 validation/troubleshooting 기록을 commit/push한다.
+2. README와 portfolio notes에서 완료된 항목과 남은 한계를 최종 점검한다.
+3. 비용 관리를 위해 유지할 리소스와 정리할 리소스를 결정한다.
+4. 필요하면 Terraform destroy 또는 Ingress/Argo CD 삭제 절차를 별도 기록한다.
 
 ## 결정 완료 및 남은 검증
 
