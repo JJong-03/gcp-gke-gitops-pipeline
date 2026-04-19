@@ -52,7 +52,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 
 ## Design Tradeoffs
 
-- GitHub OIDC/WIF는 먼저 수동 구성으로 end-to-end 흐름을 검증한 뒤, GCP-side prerequisite만 Terraform import 대상으로 전환하는 전략을 선택했다. 이 방식은 이미 검증된 리소스를 recreate하지 않고 state로 편입할 수 있으며, GitHub secret 값은 계속 Terraform state 밖에 둔다.
+- GitHub OIDC/WIF는 먼저 수동 구성으로 end-to-end 흐름을 검증한 뒤, GCP-side prerequisite만 Terraform import로 편입했다. 이 방식은 이미 검증된 리소스를 recreate하지 않고 state로 관리하면서, GitHub secret 값은 계속 Terraform state 밖에 두기 위한 선택이었다. post-import `terraform plan`은 `No changes.`로 확인했다.
 - Image tag 자동 업데이트는 후순위로 두었다. 초기 버전에서는 GitHub Actions가 image를 push하고, 사람이 `k8s/deployment.yaml`의 image tag를 갱신한 뒤, Argo CD가 Git desired state를 sync하는 구조로 CI와 CD 책임 분리를 명확히 검증했다. 공개 repo에서는 GCP 계정별 image URI를 placeholder로 되돌렸고, 실제 검증 image는 validation 기록과 캡처로 분리했다.
 - Argo CD `repoURL`은 실제 공개 GitHub repository URL을 유지한다. 이 값은 secret이 아니라 Argo CD sync 증거와 연결되는 공개 주소이며, fork하거나 재사용할 때는 본인 repository URL로 교체해야 한다.
 - Cloud DNS, HTTPS, static IP는 초기 범위에서 제외했다. 먼저 host rule 없는 GCE Ingress External IP와 HTTP 200으로 Service -> Pods 경로와 GKE-managed load balancer 동작을 검증하고, 도메인과 인증서 의존성은 다음 단계 개선으로 남겼다.
@@ -68,7 +68,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 - GKE node service account를 별도로 두고, GKE 기본 node role과 Artifact Registry reader 권한을 분리해 image pull 경로를 검증했다.
 - GitHub Actions는 Artifact Registry image build/push를 담당하고, Argo CD는 Git desired state sync를 담당하도록 CI/CD 책임을 분리했다.
 - GCE Ingress, Service, NEG, backend health, External IP HTTP 200까지 확인해 외부 트래픽 경로를 끝까지 검증했다.
-- GitHub OIDC/WIF를 service account key 없이 구성해 GitHub Actions image push를 검증했고, 같은 GCP-side prerequisite를 Terraform import 대상으로 전환하는 코드를 추가했다.
+- GitHub OIDC/WIF를 service account key 없이 구성해 GitHub Actions image push를 검증했고, 같은 GCP-side prerequisite를 Terraform 코드와 state에 편입한 뒤 post-import plan `No changes.`까지 확인했다.
 - Argo CD Application이 `k8s/` manifest를 sync하고 `Synced/Healthy` 상태가 되는 것을 CLI와 UI 캡처로 확인했다.
 - quota, GKE Ingress class, Argo CD CRD, rollout resource 부족 같은 실제 실패를 문서화하고 원인과 해결을 재현 가능하게 남겼다.
 

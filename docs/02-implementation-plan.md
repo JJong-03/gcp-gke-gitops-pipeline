@@ -28,14 +28,14 @@
 | 6 | 완료 | GitHub Actions와 Artifact Registry 흐름 정리 | workflow trigger, image URI, GitHub OIDC/WIF 사전조건, secret, push 조건, CI image push 결과가 문서화됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
 | 7 | 완료 | Argo CD GitOps sync 검증 | `argocd-app.yaml` repoURL이 실제 값으로 교체되고 sync/health 결과가 기록됨 | `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
 | 8 | 완료 | 최종 검증, troubleshooting, 포트폴리오 정리 | 검증 증거와 해결 이슈를 기반으로 README와 portfolio notes가 정리됨 | `docs/08-troubleshooting.md`, `docs/09-portfolio-notes.md`, `README.md` |
-| 9 | 진행 중 | Bootstrap prerequisite Terraform화 | GCP API enablement와 GitHub Actions OIDC/WIF GCP-side 리소스 코드 추가 및 `terraform validate` 완료. 기존 수동 리소스 import와 post-import plan 검토 필요 | `terraform/modules/project_services`, `terraform/modules/github_wif`, `docs/03-terraform-plan.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
+| 9 | 완료 | Bootstrap prerequisite Terraform화 | GCP API enablement와 GitHub Actions OIDC/WIF GCP-side 리소스 코드 추가, 기존 수동 리소스 13개 import 완료, post-import `terraform plan` `No changes.` 확인 | `terraform/modules/project_services`, `terraform/modules/github_wif`, `docs/03-terraform-plan.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
 
 ## 현재 우선순위
 
-1. **즉시**: GCP API enablement와 GitHub Actions OIDC/WIF 수동 리소스의 import 명령을 review한다.
-2. import 후 `terraform plan`에서 예상치 못한 destroy/recreate가 없는지 확인한다.
-3. plan이 안정화되면 validation/troubleshooting 기록을 갱신한다.
-4. 비용 관리를 위해 유지할 리소스와 정리할 리소스를 결정한다.
+1. **즉시**: 최종 제출 전 문서 상태 표현, placeholder 유지 여부, evidence 링크를 다시 점검한다.
+2. 비용 관리를 위해 유지할 리소스와 정리할 리소스를 결정한다.
+3. 정리가 필요하면 `docs/10-reproduction-runbook.md`의 cleanup 순서로 Argo CD, Kubernetes, Load Balancer, Terraform 리소스를 정리한다.
+4. 후속 개선 사항은 완료 항목과 섞지 않고 portfolio notes의 Future Improvements로 유지한다.
 
 ## 결정 완료 및 남은 검증
 
@@ -43,9 +43,9 @@
 |---|---|---|---|
 | GKE node locations | regional cluster에 `asia-northeast3-a`, `asia-northeast3-c` 명시 | Terraform apply 완료, `kubectl get nodes`에서 node 2개 `Ready` 확인 완료 | `terraform/modules/gke/*`, `terraform/variables.tf`, `terraform/main.tf`, `README.md`, `CLAUDE.md`, `docs/01-architecture.md`, `docs/03-terraform-plan.md` |
 | GKE node service account IAM | 별도 node service account 생성 후 project-level `roles/container.defaultNodeServiceAccount`와 Artifact Registry repository-scoped `roles/artifactregistry.reader` 부여 | Terraform apply, 실제 IAM policy 조회, GKE image pull 검증 완료 | `terraform/modules/gke/*`, `terraform/modules/artifact_registry/*`, `docs/03-terraform-plan.md`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
-| GitHub Actions 인증 | GitHub OIDC + Workload Identity Federation 사용. GCP-side prerequisite는 Terraform import 대상으로 전환 중이고 GitHub secrets는 수동 유지 | deploy service account, Artifact Registry writer binding, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding, GitHub variables/secrets, CI image push 검증 완료. Terraform 코드 추가 및 import 대기 | `.github/workflows/ci.yml`, `README.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
-| GCP API enablement | 초기 버전은 사전 수동 활성화, 현재는 `project_services` module import 대상으로 전환 중 | `sts.googleapis.com` 포함 API 목록 문서화 및 실제 활성화 결과 기록 완료. Terraform 코드 추가 및 import 대기 | `README.md`, `docs/03-terraform-plan.md`, `docs/07-validation.md` |
-| Bootstrap prerequisite Terraform화 | GCP API enablement와 GitHub Actions OIDC/WIF GCP-side 리소스를 Terraform 코드로 표현 | `project_services`, `github_wif` 모듈 추가 및 `terraform validate` 완료. 기존 수동 리소스 import, post-import plan 검토, 문서 보강 필요 | `terraform/main.tf`, `terraform/modules/project_services/*`, `terraform/modules/github_wif/*`, `docs/03-terraform-plan.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
+| GitHub Actions 인증 | GitHub OIDC + Workload Identity Federation 사용. GCP-side prerequisite는 Terraform 관리로 편입 완료했고 GitHub secrets는 수동 유지 | deploy service account, Artifact Registry writer binding, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding, GitHub variables/secrets, CI image push 검증 완료. Terraform import 완료 및 post-import plan `No changes.` 확인 | `.github/workflows/ci.yml`, `README.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
+| GCP API enablement | 초기 버전은 사전 수동 활성화, 현재는 `project_services` module로 Terraform 관리 | `sts.googleapis.com` 포함 API 목록 문서화, 실제 활성화 결과 기록, Terraform import 완료, post-import plan `No changes.` 확인 | `README.md`, `docs/03-terraform-plan.md`, `docs/07-validation.md` |
+| Bootstrap prerequisite Terraform화 | GCP API enablement와 GitHub Actions OIDC/WIF GCP-side 리소스를 Terraform 코드로 표현하고 기존 수동 리소스 13개를 state에 편입 완료 | `project_services`, `github_wif` 모듈 추가, `terraform validate`, import, post-import `terraform plan` `No changes.` 확인 완료 | `terraform/main.tf`, `terraform/modules/project_services/*`, `terraform/modules/github_wif/*`, `docs/03-terraform-plan.md`, `docs/06-gitops-cicd.md`, `docs/07-validation.md` |
 | image tag 업데이트 전략 | 초기 버전은 CI push 후 수동 manifest 갱신, 이후 Argo CD sync | 검증 당시 CI가 push한 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image URI를 반영해 Argo CD sync 완료. 공개 manifest는 placeholder로 복원. 자동 업데이트는 후순위로 유지 | `k8s/deployment.yaml`, `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md` |
 | 수동 image build/push | 로컬 Docker 기반 smoke test 또는 GitHub Actions WIF 기반 push 중 선택 | 로컬 Docker 기반 수동 smoke test 완료. `sample-app:manual-20260419201633` push, Deployment rollout, GKE pull 검증 완료 | `docs/05-app-deployment.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |
 | Ingress 검증 | 초기 버전은 host rule 제거, ClusterIP Service와 GCE Ingress baseline 유지 | Service 생성, NEG 자동 annotation, backend endpoint, Ingress backend/events, external address, HTTP 200 응답 확인 완료 | `k8s/ingress.yaml`, `k8s/service.yaml`, `README.md`, `docs/01-architecture.md`, `docs/05-app-deployment.md`, `docs/07-validation.md`, `docs/08-troubleshooting.md` |

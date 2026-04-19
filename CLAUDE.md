@@ -74,7 +74,7 @@ GKE nodes use a dedicated node service account instead of relying on the default
 
 The sample app has been manually built, pushed to Artifact Registry, deployed to GKE, and verified for image pull. The Service and hostless GCE Ingress have been applied; Service NEG auto annotation, Ingress backend/events, External IP assignment, and HTTP 200 access are validated. GitHub Actions has pushed a commit-tagged image to Artifact Registry, and Argo CD has synced the `k8s/` desired state with `Synced/Healthy` status.
 
-The current Terraformization phase adds definitions for repeatable bootstrap prerequisites: GCP API enablement and the GCP-side GitHub Actions OIDC/WIF identity path. Existing manually created resources must be imported before `terraform apply`; GitHub repository secrets remain outside Terraform state.
+Terraform includes the repeatable bootstrap prerequisites: GCP API enablement and the GCP-side GitHub Actions OIDC/WIF identity path. The existing manually created bootstrap resources have been imported into Terraform state, and post-import `terraform plan` returned `No changes.` GitHub repository secrets remain outside Terraform state. If new manual GCP-side resources are introduced later, import them before using `terraform apply` to manage them.
 
 ---
 
@@ -226,7 +226,7 @@ Documentation must describe the current implementation honestly. Do not present 
 3. Do not blur CI and CD responsibilities.
 4. Keep image tag and manifest update strategy explicit when it is finalized.
 5. Keep `docs/06-gitops-cicd.md` aligned with `.github/workflows/ci.yml` and `gitops/argocd-app.yaml`.
-6. GitHub Actions authentication uses GitHub OIDC and Workload Identity Federation; the GCP-side identity resources are represented in Terraform and existing manual resources must be imported before apply.
+6. GitHub Actions authentication uses GitHub OIDC and Workload Identity Federation; the current GCP-side identity resources are represented in Terraform and imported into state. If new manual GCP-side identity resources are added later, import them before using `terraform apply` to manage them.
 7. GitHub repository secrets stay outside Terraform state and remain a manual prerequisite unless a separate decision changes that boundary.
 8. Initial image tag promotion is manual: update the Kubernetes manifest with the pushed Artifact Registry image URI, then let Argo CD sync Git desired state.
 

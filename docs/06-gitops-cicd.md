@@ -70,7 +70,7 @@ ${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/sample-ap
 
 ## 인증 기준
 
-현재 workflow는 GitHub OIDC와 Google Cloud Workload Identity Federation을 사용한다. 초기 구성은 수동으로 완료 및 검증됐고, 현재 Terraformization 단계에서는 GCP-side prerequisite를 Terraform 코드로 표현한 뒤 기존 리소스를 import해 관리 대상으로 전환한다.
+현재 workflow는 GitHub OIDC와 Google Cloud Workload Identity Federation을 사용한다. 초기 구성은 수동으로 완료 및 검증됐고, 이후 GCP-side prerequisite를 Terraform 코드로 표현한 뒤 기존 리소스를 import해 관리 대상으로 편입했다. post-import `terraform plan`은 `No changes.`로 확인됐다.
 
 | GitHub secret | 목적 |
 |---|---|
@@ -87,12 +87,12 @@ Terraform output으로 같은 식별자를 확인할 수 있더라도, GitHub se
 
 | 항목 | 현재 확인 상태 |
 |---|---|
-| Workload Identity Pool/Provider | GitHub repository OIDC subject 조건에 맞게 수동 구성 완료. `github_wif` module 코드 추가, import 대기 |
+| Workload Identity Pool/Provider | GitHub repository OIDC subject 조건에 맞게 수동 구성 완료. `github_wif` module import 완료, post-import plan `No changes.` 확인 |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` secret | GitHub repository secret 등록 완료. 값은 `projects/[PROJECT_NUMBER]/locations/global/workloadIdentityPools/[POOL_ID]/providers/[PROVIDER_ID]` 형식 |
 | `GCP_SERVICE_ACCOUNT` secret | GitHub repository secret 등록 완료. 값은 `[SERVICE_ACCOUNT_NAME]@[PROJECT_ID].iam.gserviceaccount.com` 형식 |
-| Service account impersonation | GitHub OIDC principal에 대상 service account의 `roles/iam.workloadIdentityUser` 부여 완료. `github_wif` module 코드 추가, import 대기 |
+| Service account impersonation | GitHub OIDC principal에 대상 service account의 `roles/iam.workloadIdentityUser` 부여 완료. `github_wif` module import 완료, post-import plan `No changes.` 확인 |
 | Repository principal binding | `principalSet://iam.googleapis.com/projects/[PROJECT_NUMBER]/locations/global/workloadIdentityPools/[POOL_ID]/attribute.repository/[OWNER]/[REPOSITORY]` 형식으로 repository 단위 제한 완료 |
-| Deploy service account push 권한 | Artifact Registry repository scope의 `roles/artifactregistry.writer` 부여 완료. `github_wif` module 코드 추가, import 대기 |
+| Deploy service account push 권한 | Artifact Registry repository scope의 `roles/artifactregistry.writer` 부여 완료. `github_wif` module import 완료, post-import plan `No changes.` 확인 |
 | Secret 관리 | 실제 secret 값은 repository 파일, 문서, commit log에 기록하지 않음 |
 
 Project 전체에 `roles/artifactregistry.writer`를 주는 방식은 설정이 단순하지만 권한 범위가 넓다. 초기 포트폴리오 프로젝트에서도 가능하면 Artifact Registry repository 단위 IAM binding을 우선 사용하고, project-wide 권한을 선택했다면 그 이유와 범위를 문서화한다.
@@ -114,14 +114,14 @@ ATTRIBUTE_CONDITION="assertion.repository=='${GITHUB_OWNER}/${GITHUB_REPO}'"
 | Deploy service account email | `github-actions-deploy@[PROJECT_ID].iam.gserviceaccount.com` |
 | Repository principal | `principalSet://iam.googleapis.com/projects/[PROJECT_NUMBER]/locations/global/workloadIdentityPools/[POOL_ID]/attribute.repository/[OWNER]/[REPOSITORY]` |
 
-WIF Terraform 관리 전환 상태:
+WIF Terraform 관리 상태:
 
 | 항목 | 상태 |
 |---|---|
 | Workload Identity Pool/Provider | 수동 구성 완료, Terraform import 완료, post-import plan `No changes.` 확인 |
-| deploy service account | 수동 생성 완료, Terraform import 완료 |
-| Artifact Registry writer IAM | 수동 구성 완료, Terraform import 완료 |
-| `roles/iam.workloadIdentityUser` binding | 수동 구성 완료, Terraform import 완료 |
+| deploy service account | 수동 생성 완료, Terraform import 완료, post-import plan `No changes.` 확인 |
+| Artifact Registry writer IAM | 수동 구성 완료, Terraform import 완료, post-import plan `No changes.` 확인 |
+| `roles/iam.workloadIdentityUser` binding | 수동 구성 완료, Terraform import 완료, post-import plan `No changes.` 확인 |
 | GitHub repository secrets | 수동 유지, Terraform state 제외 |
 
 ## GKE Image Pull IAM 기준

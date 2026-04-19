@@ -48,7 +48,7 @@ module.network.google_compute_subnetwork.gke
 ```text
 gcloud container clusters list --region asia-northeast3 --project [PROJECT_ID]
 NAME                LOCATION         MASTER_VERSION                         MASTER_IP     MACHINE_TYPE  NODE_VERSION        NUM_NODES  STATUS  STACK_TYPE
-gke-gitops-cluster  asia-northeast3  1.35.1-gke.1396002 (! 13 days left !)  34.22.82.153  e2-medium     1.35.1-gke.1396002  3          ERROR   IPV4
+gke-gitops-cluster  asia-northeast3  1.35.1-gke.1396002 (! 13 days left !)  [REDACTED]   e2-medium     1.35.1-gke.1396002  3          ERROR   IPV4
 ```
 
 1차 quota 완화 수정 후 apply 재시도에서 발생한 추가 오류:
