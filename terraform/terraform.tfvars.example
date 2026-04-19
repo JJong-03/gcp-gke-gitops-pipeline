@@ -1,0 +1,24 @@
+# Copy this file to terraform.tfvars for local runs.
+# Do not commit terraform.tfvars with real project-specific values.
+
+project_id = "your-gcp-project-id"
+region     = "asia-northeast3"
+
+network_name = "gke-gitops-vpc"
+subnet_name  = "gke-gitops-subnet"
+subnet_cidr  = "10.10.0.0/20"
+
+pods_secondary_range_name     = "pods"
+pods_secondary_cidr           = "10.20.0.0/16"
+services_secondary_range_name = "services"
+services_secondary_cidr       = "10.30.0.0/20"
+
+cluster_name          = "gke-gitops-cluster"
+gke_node_count        = 1
+gke_node_locations    = ["asia-northeast3-a", "asia-northeast3-c"]
+gke_machine_type      = "e2-medium"
+gke_node_disk_size_gb = 30
+
+gke_node_service_account_id = "gke-gitops-node"
+
+artifact_registry_repository_id = "gke-gitops-images"

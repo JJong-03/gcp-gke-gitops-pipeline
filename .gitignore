@@ -1,0 +1,48 @@
+# Terraform local state and generated files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.plan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform variable files can contain project-specific or sensitive values
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+application_default_credentials.json
+credentials*.json
+service-account*.json
+sa-key*.json
+*.credentials
+*.kubeconfig
+kubeconfig*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS and temporary files
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+*.log
+
