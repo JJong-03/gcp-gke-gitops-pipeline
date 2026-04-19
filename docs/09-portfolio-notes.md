@@ -74,10 +74,10 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 
 ## Future Improvements
 
-- Terraform state를 GCS remote backend로 이전하고, state 접근 권한과 locking 전략을 정리한다.
-- Terraform remote backend를 GCS로 이전하고 state locking을 구성한다.
+- Terraform state를 GCS remote backend로 이전하고, state locking과 state 접근 권한 정책을 함께 정리한다.
 - HTTPS Ingress를 위해 static IP, Managed Certificate, Cloud DNS 구성을 추가한다.
 - GitHub Actions가 push한 image tag를 manifest에 자동 반영하는 전략을 도입한다. 선택지는 CI가 PR을 생성하는 방식, Kustomize/Helm values 업데이트, Argo CD Image Updater 등이다.
 - Argo CD `AppProject`, RBAC, repository access policy를 강화해 GitOps 운영 경계를 더 명확히 한다.
 - 비용 정리와 재현성을 위해 Ingress/Argo CD 삭제, Terraform destroy, Artifact Registry image cleanup 절차를 문서화한다.
 - GKE node autoscaling, resource requests/limits, PodDisruptionBudget, readiness/liveness probe를 추가해 운영 안정성 관점의 다음 단계를 설계한다.
+- sample app Deployment는 placeholder 목적상 단순하게 유지했지만, 후속 단계에서는 pod/container `securityContext`, non-root 실행, read-only root filesystem 같은 hardening을 검토한다.

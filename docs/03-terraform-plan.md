@@ -150,6 +150,8 @@ sts.googleapis.com
 
 현재 Terraform은 regional cluster를 유지하면서 node pool에 `node_locations = var.node_locations`를 명시한다. 기본값은 2개 zone이며 `node_count = 1`이므로 초기 예상 node 수는 zone별 1개, 총 2개다. 이는 3개 zone 전체 사용보다 비용을 제한하면서 regional GKE 구조를 설명하기 위한 기준이다.
 
+`deletion_protection = false`는 포트폴리오 재현과 cleanup/destroy 검증을 쉽게 하기 위한 초기 설정이며, 운영 환경에서는 별도 정책으로 재검토한다.
+
 GKE node는 default Compute Engine service account 대신 별도 node service account를 사용한다. `terraform/modules/gke`는 이 service account에 project-level `roles/container.defaultNodeServiceAccount`를 부여하도록 정의하고, Artifact Registry repository 단위 reader 권한은 `terraform/modules/artifact_registry`가 관리한다. 실제 IAM 적용, policy 조회, GKE image pull 검증은 완료됐다.
 
 ## `artifact_registry` Module

@@ -94,6 +94,7 @@
 
 - 남은 검증: 기존 수동 활성화 API와 GitHub Actions WIF GCP-side 리소스를 import한 뒤 `terraform plan`에서 예상치 못한 destroy/recreate가 없는지 확인해야 함. `terraform apply`는 plan review 전 실행하지 않음.
 - 상태: 진행 중
+- 후속 연결: 이 중간 상태는 이후 기존 수동 리소스 import와 post-import `terraform plan` `No changes.` 확인으로 완료 처리됐다.
 
 ### 2026-04-19 - Bootstrap prerequisite Terraform import 및 plan 안정화
 
