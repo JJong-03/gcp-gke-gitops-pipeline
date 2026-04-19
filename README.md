@@ -8,8 +8,7 @@
   <img src="https://img.shields.io/badge/Argo_CD-151515?style=for-the-badge&logo=argo&logoColor=EF7B4D" alt="Argo CD" />
 </div>
 
-> Terraform으로 GCP 기반 GKE 인프라를 구성하고,<br/>GitHub Actions가 컨테이너 이미지를 빌드/푸시하며,<br/>Argo CD가 Git의 Kubernetes desired state를 GKE에 동기화하는 GitOps 포트폴리오 프로젝트입니다.
-
+> GCP 기반 GKE GitOps 파이프라인을 Terraform으로 구성했습니다.<br/> Artifact Registry, GKE, GitHub Actions OIDC/WIF, Argo CD 기반 배포 흐름을 구현했고, 실제 배포 및 Ingress 접근까지 검증했습니다.<br/> 검증 후 비용 관리를 위해 Terraform destroy로 리소스를 정리했으며, 전체 재현 절차와 트러블슈팅 기록을 문서화했습니다.
 <p align="center">
   <img src="docs/images/00-architecture.png" alt="GCP GKE GitOps Pipeline architecture" width="760">
 </p>
