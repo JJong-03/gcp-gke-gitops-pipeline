@@ -1,79 +1,82 @@
 # Portfolio Notes
 
-이 문서는 프로젝트를 포트폴리오로 설명할 때 사용할 요약 문장, 강조 역량, 설계 선택, 검증 근거, 개선 아이디어를 정리한다.
+이 문서는 `gcp-gke-gitops-pipeline` 프로젝트를 과제 또는 포트폴리오로 제출할 때 사용할 설명 문서다. 단순 작업 기록이 아니라 리뷰어가 무엇을 설계했고, 무엇을 검증했고, 어떤 문제를 해결했는지 빠르게 파악할 수 있도록 정리한다.
 
-구현 계획을 대신하지 않으며, 실제 구현과 검증이 끝난 뒤 외부 설명용으로 다듬는 문서다.
+실제 검증 세부 기록은 [Validation](07-validation.md), 문제 해결 과정은 [Troubleshooting](08-troubleshooting.md), 캡처 목록은 [Image Capture Checklist](images/README.md)와 [README Validation Evidence](../README.md#validation-evidence)를 기준으로 한다.
 
-## 작성 전제
+## Project Summary
 
-현재 저장소는 Terraform 모듈 구현, Kubernetes manifest, GitHub Actions workflow, Argo CD Application manifest가 준비된 상태다. GCP `terraform apply`는 SSD quota와 disk size 이슈를 해결한 뒤 완료됐으며, GKE cluster는 `RUNNING`, node 수는 `2`, node 상태는 `Ready`, system pod는 `Running`으로 확인됐다. GKE node service account의 기본 node role과 Artifact Registry reader IAM policy 조회도 완료했고, 로컬 Docker 기반 수동 image build/push로 Artifact Registry에 sample app image를 push했다. 해당 image를 `k8s/deployment.yaml`에 반영해 Deployment rollout과 GKE image pull도 검증했다. Service 생성, NEG 자동 annotation, Ingress backend/events, External IP HTTP 200 응답, GitHub Actions CI image push, Argo CD sync/health까지 확인했다.
+GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, GitHub Actions, Artifact Registry, Argo CD로 연결한 포트폴리오 프로젝트다. Terraform은 VPC, subnet, regional GKE cluster, node pool, node service account, Artifact Registry repository를 모듈 단위로 생성한다. GKE는 sample app workload를 실행하고, Artifact Registry는 GitHub Actions와 수동 검증에서 push한 Docker image를 저장한다. GitHub Actions는 CI로서 Docker image build와 Artifact Registry push를 담당하고, Argo CD는 CD로서 Git 저장소의 `k8s/` desired state를 GKE에 동기화한다.
 
-포트폴리오 설명 문장은 `docs/07-validation.md`의 실제 검증 결과와 `docs/08-troubleshooting.md`의 문제 해결 기록을 근거로 확정한다. 완료되지 않은 항목은 완료된 것처럼 표현하지 않는다.
+## Architecture Highlights
 
-## 최종 정리할 항목
+- Terraform module boundary는 `network`, `gke`, `artifact_registry`로 나누었다. `network`는 custom VPC, GKE subnet, Pod/Service secondary range를 관리하고, `gke`는 regional cluster와 node pool, node service account, GKE node IAM을 관리하며, `artifact_registry`는 Docker repository와 GKE image pull reader IAM을 관리한다.
+- GKE는 `asia-northeast3` regional cluster로 구성했다. node locations는 `asia-northeast3-a`, `asia-northeast3-c`이고, `node_count = 1`은 각 node location당 1개 node를 의미하므로 실제 초기 node 수는 2개로 검증됐다.
+- 네트워크는 VPC-native GKE를 전제로 한다. subnet 안에 Pod secondary range와 Service secondary range를 명시해 Pod IP와 Service IP를 GCP 네트워크 설계에 포함했다.
+- 사용자 트래픽은 GKE-managed GCE Ingress가 만든 External HTTP(S) Load Balancer에서 시작해 Kubernetes Service를 거쳐 sample app Pods로 전달된다.
+- CI/CD 책임은 명확히 분리했다. GitHub Actions는 image build/push까지만 수행하고, Argo CD는 Git에 기록된 Kubernetes manifest를 cluster desired state로 sync한다.
+- GKE node는 default Compute Engine service account에 의존하지 않고 별도 node service account를 사용한다. project-level `roles/container.defaultNodeServiceAccount`와 Artifact Registry repository-scoped `roles/artifactregistry.reader`를 확인했고, 실제 image pull까지 검증했다.
 
-| 항목 | 작성 기준 |
+## What Was Validated
+
+완료 표시는 실제 실행 결과 또는 캡처 근거가 있는 항목만 기준으로 한다. 상세 명령과 결과는 [docs/07-validation.md](07-validation.md)에 기록되어 있다.
+
+| Area | Validated result |
 |---|---|
-| 한 줄 요약 | Terraform, GKE, GitHub Actions, Artifact Registry, Argo CD 흐름을 짧게 설명 |
-| 기술 스택별 역량 | 실제 구현 파일과 검증 결과에 근거해 작성 |
-| 설계 선택 | 왜 module을 나눴는지, 왜 CI/CD 책임을 분리했는지 설명 |
-| 검증 근거 | `docs/07-validation.md`에서 완료된 항목만 사용 |
-| 문제 해결 경험 | `docs/08-troubleshooting.md`에 기록된 실제 이슈만 사용 |
-| 한계와 개선 | 초기 범위 밖 항목을 다음 단계 개선으로 정리 |
+| Terraform | `terraform init`, `terraform validate`, `terraform plan`, `terraform apply` 완료. 최종 apply에서 VPC, subnet, GKE, node pool, node service account, IAM binding, Artifact Registry repository 생성 성공 |
+| GKE cluster | regional cluster `RUNNING`, node 2개 `Ready`, GKE system pods `Running` 확인 |
+| Node IAM | 별도 GKE node service account에 `roles/container.defaultNodeServiceAccount`와 repository-scoped `roles/artifactregistry.reader` 부여 확인 |
+| Artifact Registry | 수동 Docker image build/push 성공, GitHub Actions `main` push 기반 commit tag image push 성공 |
+| Image pull | GKE Pods가 Artifact Registry image를 정상 pull했고 image digest 기반 실행 확인 |
+| Kubernetes workload | sample app `Deployment` rollout 성공, replicas `2/2` available 확인 |
+| Service and NEG | `ClusterIP` Service 생성, GKE Ingress용 NEG annotation/status와 service network endpoint group 확인 |
+| Ingress | GCE Ingress External IP 할당, backend health 확인, External IP HTTP 접근에서 `HTTP/1.1 200 OK` 확인 |
+| GitHub Actions | OIDC/WIF 수동 구성 후 `main` push workflow가 Artifact Registry image push까지 성공 |
+| Argo CD | Argo CD 설치, Application 생성, `Synced/Healthy`, CI image tag 기반 Deployment rollout 확인 |
 
-## 현재 단계에서 사용할 수 있는 초안 문장
+검증 캡처는 [docs/images/README.md](images/README.md)에 목록화되어 있고, README의 [Validation Evidence](../README.md#validation-evidence) 섹션에는 주요 캡처가 바로 보이도록 연결되어 있다.
 
-README 또는 면접 설명에 사용하기 전, 실제 검증 완료 여부에 맞게 표현을 조정한다.
+## Troubleshooting Story
 
-짧은 설명:
+아래 사례는 포트폴리오나 면접에서 설명하기 좋은 실제 문제 해결 흐름이다. 자세한 로그와 재발 방지 기준은 [docs/08-troubleshooting.md](08-troubleshooting.md)에 남겨두었다.
 
-```text
-GCP 기반 GKE 인프라를 Terraform으로 구성하고, GitHub Actions와 Artifact Registry, Argo CD를 연결해 CI와 GitOps CD 책임을 분리하는 포트폴리오 프로젝트입니다.
-```
+| Problem | Cause | Resolution | Lesson |
+|---|---|---|---|
+| GKE regional cluster 생성 중 SSD quota 초과 | regional cluster 생성 과정에서 임시 default pool이 여러 zone에 disk를 만들며 `asia-northeast3` SSD quota를 초과했다. | node pool disk size를 30GB로 명시하고, cluster 임시 default pool disk size도 별도로 통제했다. 최종적으로 quota 내에서 `terraform apply`를 완료했다. | regional GKE는 최종 node 수뿐 아니라 생성 중 임시 리소스도 quota에 영향을 준다. apply 전 node locations, node count, disk size 조합을 계산해야 한다. |
+| default pool disk size 10GB 적용 실패 | quota 절감을 위해 임시 default pool disk를 10GB로 낮췄지만, 선택된 GKE COS image의 최소 disk size가 12GB였다. | cluster `node_config.disk_size_gb`를 20GB로 상향했다. 20GB는 image 최소 크기를 넘고, 250GB SSD quota 안에서도 수용 가능했다. | 비용 절감 값도 플랫폼 최소 요구사항을 만족해야 한다. quota 절감과 image/runtime 최소 조건을 함께 검토해야 한다. |
+| Terraform `project_id` 값에 줄바꿈 포함 | CLI `-var` 입력 또는 변수 값에 newline control character가 들어가 Google provider API URL과 service account 요청이 깨졌다. | `project_id`를 한 줄 문자열로 다시 전달해 `terraform apply`를 재실행했다. | `invalid control character`, 줄바꿈된 API URL, project ID regex 오류가 보이면 credential보다 입력값 형식을 먼저 의심한다. |
+| GKE Ingress `ADDRESS` 미할당 | Ingress manifest에 `spec.ingressClassName: gce`만 사용했고, GKE Ingress Controller가 기대하는 `kubernetes.io/ingress.class: "gce"` annotation이 없었다. | annotation 기반으로 수정한 뒤 GKE load balancer events, forwarding rule, backend health, External IP HTTP 200을 확인했다. | GKE Ingress는 표준 `ingressClassName` 표시와 실제 controller 처리 조건이 다를 수 있다. `kubectl get ingress`의 `CLASS`만 보지 말고 events와 GCP LB 생성 여부를 함께 확인해야 한다. |
+| Argo CD install CRD annotation size 오류 | 공식 install manifest를 client-side apply로 적용하면서 대형 CRD schema가 last-applied annotation 크기 제한을 초과했다. | 같은 manifest를 `kubectl apply --server-side --force-conflicts`로 재적용해 CRD와 controller 리소스를 설치했다. | CRD가 큰 도구는 server-side apply가 더 안정적이다. 실패 후 수동 삭제보다 같은 desired state를 올바른 apply 방식으로 재적용하는 편이 안전하다. |
+| Argo CD sync 후 Deployment rollout `Progressing` | 2개 `e2-medium` node에서 기본 rolling update `maxSurge`가 추가 pod를 만들었고, Argo CD와 system workload가 있는 상태에서 CPU가 부족했다. | `maxSurge: 0`, `maxUnavailable: 1`을 명시해 추가 surge pod 없이 rollout되도록 조정했다. 이후 Argo CD `Synced/Healthy`, Deployment `2/2` rollout, HTTP 200을 재확인했다. | 작은 fixed-size cluster에서는 기본 rollout 전략도 리소스 부족을 만들 수 있다. 비용 통제형 baseline에서는 rollout strategy를 명시하는 것이 검증 가능성을 높인다. |
 
-현재 상태 설명:
+## Design Tradeoffs
 
-```text
-현재는 Terraform 모듈, Kubernetes workload manifest, Argo CD Application manifest, GitHub Actions workflow 초안이 준비되어 있고, Terraform apply, GKE bootstrap, GKE node IAM, 수동 Artifact Registry image push, Deployment rollout, GKE image pull, Service/NEG annotation, Ingress backend/events, External IP HTTP 200 응답, GitHub Actions CI image push, Argo CD sync/health 확인까지 완료했습니다.
-```
+- GitHub OIDC/WIF는 Terraform 자동화가 아니라 초기 수동 구성으로 검증했다. 목적은 인증 리소스 자동화보다 Terraform -> GKE -> Artifact Registry -> GitHub Actions -> Argo CD end-to-end 흐름을 먼저 검증하는 것이었고, repository 조건과 secret 값은 문서와 저장소에 노출하지 않는 편이 안전했다.
+- Image tag 자동 업데이트는 후순위로 두었다. 초기 버전에서는 GitHub Actions가 image를 push하고, 사람이 `k8s/deployment.yaml`의 image tag를 갱신한 뒤, Argo CD가 Git desired state를 sync하는 구조로 CI와 CD 책임 분리를 명확히 검증했다. 공개 repo에서는 GCP 계정별 image URI를 placeholder로 되돌렸고, 실제 검증 image는 validation 기록과 캡처로 분리했다.
+- Argo CD `repoURL`은 실제 공개 GitHub repository URL을 유지한다. 이 값은 secret이 아니라 Argo CD sync 증거와 연결되는 공개 주소이며, fork하거나 재사용할 때는 본인 repository URL로 교체해야 한다.
+- Cloud DNS, HTTPS, static IP는 초기 범위에서 제외했다. 먼저 host rule 없는 GCE Ingress External IP와 HTTP 200으로 Service -> Pods 경로와 GKE-managed load balancer 동작을 검증하고, 도메인과 인증서 의존성은 다음 단계 개선으로 남겼다.
+- Terraform remote backend는 아직 구성하지 않았다. 현재는 개인 포트폴리오 검증 단계라 local state로 진행했고, 협업이나 장기 운영으로 확장할 경우 GCS backend, state locking, 접근 권한 정책을 별도 설계해야 한다.
+- Regional GKE를 사용하되 node locations를 2개 zone으로 제한했다. 이는 멀티존 배치와 비용 통제를 동시에 설명하기 위한 선택이며, production 수준의 autoscaling 또는 고가용성 설계를 완성했다는 의미는 아니다.
+- Kubernetes 리소스는 `Deployment`, `Service`, `Ingress`, Argo CD `Application` 중심으로 제한했다. sample app 자체보다 플랫폼 흐름 검증이 목표였기 때문에 복잡한 app logic, service mesh, advanced rollout controller는 초기 버전에서 제외했다.
 
-검증 완료 후 사용할 수 있는 설명은 실제 결과가 생긴 뒤 별도로 확정한다.
+## Portfolio Talking Points
 
-## 강조할 수 있는 설계 포인트
+- Terraform root module과 `network`, `gke`, `artifact_registry` module boundary로 GCP 리소스 책임을 설명할 수 있다.
+- Regional GKE에서 `node_locations = ["asia-northeast3-a", "asia-northeast3-c"]`, `node_count = 1` 조합이 실제 node 2개로 생성되는 동작을 검증했다.
+- VPC-native GKE를 위해 Pod/Service secondary range를 subnet 설계에 포함했다.
+- GKE node service account를 별도로 두고, GKE 기본 node role과 Artifact Registry reader 권한을 분리해 image pull 경로를 검증했다.
+- GitHub Actions는 Artifact Registry image build/push를 담당하고, Argo CD는 Git desired state sync를 담당하도록 CI/CD 책임을 분리했다.
+- GCE Ingress, Service, NEG, backend health, External IP HTTP 200까지 확인해 외부 트래픽 경로를 끝까지 검증했다.
+- GitHub OIDC/WIF를 service account key 없이 구성해 GitHub Actions image push를 검증했다.
+- Argo CD Application이 `k8s/` manifest를 sync하고 `Synced/Healthy` 상태가 되는 것을 CLI와 UI 캡처로 확인했다.
+- quota, GKE Ingress class, Argo CD CRD, rollout resource 부족 같은 실제 실패를 문서화하고 원인과 해결을 재현 가능하게 남겼다.
 
-| 포인트 | 설명 기준 |
-|---|---|
-| Terraform module boundary | `network`, `gke`, `artifact_registry` 책임 분리 |
-| VPC-native GKE baseline | subnet과 Pod/Service secondary range를 함께 설계 |
-| GKE node disk size 명시 | SSD quota 제약 안에서 regional cluster가 안정적으로 생성되도록 임시 default pool과 실제 node pool 디스크 크기를 명시적으로 통제 |
-| CI/CD 책임 분리 | GitHub Actions는 image build/push, Argo CD는 Git desired state sync |
-| GitOps repository layout | `k8s/` workload manifest와 `gitops/` bootstrap manifest 분리 |
-| 검증 중심 문서화 | 계획, 실행 결과, troubleshooting을 별도 문서로 관리 |
-| 실제 장애 대응 기록 | `terraform apply` 중 발생한 quota 오류, GKE COS 이미지 disk 최소 크기 오류, 로컬 `kubectl`/auth plugin 누락, GKE Ingress class annotation 문제를 `docs/08-troubleshooting.md`에 기록 |
+## Future Improvements
 
-## 검증 후 보강할 내용
-
-- Terraform apply 결과와 생성 리소스 요약은 README와 validation 문서에 반영됨
-- GKE 접속, node/system pod, GKE node IAM policy 검증 결과는 validation 문서에 반영됨
-- Kubernetes Deployment rollout과 GKE image pull 결과는 validation 문서에 반영됨
-- Kubernetes Service/NEG annotation과 Ingress backend/events 결과는 validation 문서에 반영됨
-- Ingress External IP HTTP 접근 검증 결과는 validation 문서에 반영됨
-- GitHub Actions workflow 실행 결과는 validation 문서에 반영됨
-- 수동 Artifact Registry image push 결과는 validation 문서에 반영됨
-- Argo CD sync/health 결과는 validation 문서에 반영됨
-- 실제 troubleshooting 사례와 해결 과정
-
-## 이후 개선 아이디어
-
-초기 버전 검증 후 필요에 따라 우선순위를 정한다.
-
-| 개선 아이디어 | 현재 판단 |
-|---|---|
-| explicit node locations | Terraform에 반영됨, 실제 node placement 검증 후 포트폴리오 설명에 사용 |
-| GKE image pull IAM | 별도 node service account와 repository-scoped reader IAM 구현, policy 조회, 실제 image pull 검증 완료 |
-| GitOps image update strategy | 초기 수동 manifest 갱신 검증 후 자동 업데이트가 필요할 때 검토 |
-| GitHub OIDC/WIF Terraform automation | 초기 수동 구성 검증 후 필요하면 Terraform 관리 대상으로 확장 |
-| GCP API enablement Terraform automation | 초기 수동 활성화 검증 후 필요하면 Terraform 관리 대상으로 확장 |
-| Managed Certificate/static IP/Cloud DNS | 외부 접근 검증 후 HTTPS 구성이 필요할 때 검토 |
-| Terraform remote backend | 협업 또는 장기 관리 필요성이 생기면 검토 |
-| 별도 namespace | `default` namespace 기준 검증 후 리소스 분리가 필요할 때 검토 |
+- Terraform state를 GCS remote backend로 이전하고, state 접근 권한과 locking 전략을 정리한다.
+- GitHub OIDC/WIF 리소스를 Terraform으로 자동화하거나, 이미 수동 구성된 리소스를 import하는 전략을 설계한다.
+- HTTPS Ingress를 위해 static IP, Managed Certificate, Cloud DNS 구성을 추가한다.
+- GitHub Actions가 push한 image tag를 manifest에 자동 반영하는 전략을 도입한다. 선택지는 CI가 PR을 생성하는 방식, Kustomize/Helm values 업데이트, Argo CD Image Updater 등이다.
+- Argo CD `AppProject`, RBAC, repository access policy를 강화해 GitOps 운영 경계를 더 명확히 한다.
+- 비용 정리와 재현성을 위해 Ingress/Argo CD 삭제, Terraform destroy, Artifact Registry image cleanup 절차를 문서화한다.
+- GKE node autoscaling, resource requests/limits, PodDisruptionBudget, readiness/liveness probe를 추가해 운영 안정성 관점의 다음 단계를 설계한다.

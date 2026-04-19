@@ -97,7 +97,7 @@ Pull Request, Manual Dispatch, or Push
   -> Artifact Registry push only on `main` branch push
 ```
 
-GitHub Actions는 CI 역할만 담당합니다. `pull_request`와 `workflow_dispatch`는 Docker image build만 수행하고 Artifact Registry push는 하지 않습니다. `push` 이벤트가 `main` 브랜치에서 발생할 때만 push job이 실행됩니다. 현재 workflow는 Kubernetes manifest의 image tag를 자동으로 갱신하지 않으므로, 초기 버전에서는 push된 image URI를 `k8s/deployment.yaml`에 수동 반영한 뒤 Argo CD sync로 배포를 검증합니다.
+GitHub Actions는 CI 역할만 담당합니다. `pull_request`와 `workflow_dispatch`는 Docker image build만 수행하고 Artifact Registry push는 하지 않습니다. `push` 이벤트가 `main` 브랜치에서 발생할 때만 push job이 실행됩니다. 현재 workflow는 Kubernetes manifest의 image tag를 자동으로 갱신하지 않으므로, 초기 버전에서는 push된 image URI를 `k8s/deployment.yaml`에 수동 반영한 뒤 Argo CD sync와 rollout으로 배포를 검증했습니다.
 
 ### GitOps CD Flow
 
@@ -108,7 +108,7 @@ Git repository
   -> syncs desired state to GKE
 ```
 
-Argo CD는 CD 역할을 담당합니다. 현재 `repoURL`은 `https://github.com/JJong-03/gcp-gke-gitops-pipeline.git`로 실제 GitHub 저장소 주소를 사용합니다.
+Argo CD는 CD 역할을 담당합니다. 현재 `repoURL`은 `gitops/argocd-app.yaml`에서 실제 공개 GitHub 저장소 주소를 사용하며, 이 값은 Argo CD가 이 repository의 `k8s/` desired state를 sync했다는 포트폴리오 증거와 연결됩니다. fork하거나 재사용할 때는 본인 repository URL로 교체해야 합니다.
 
 ---
 
@@ -133,7 +133,7 @@ Argo CD는 CD 역할을 담당합니다. 현재 `repoURL`은 `https://github.com
 | regional GKE와 `asia-northeast3-a/c` node location 사용 | 멀티존 배치를 명확히 하되 최소 노드 구성으로 비용을 통제하기 위해 |
 | GKE node 전용 service account 사용 | 기본 Compute Engine service account에 의존하지 않고 GKE 기본 node 권한과 Artifact Registry image pull 권한을 명확히 설명하기 위해 |
 | GitHub Actions를 CI로만 사용 | 빌드와 이미지 push 책임을 CI에 두고, 클러스터 동기화는 Argo CD가 담당하도록 분리하기 위해 |
-| GitHub OIDC/WIF는 초기 수동 사전조건으로 유지 | 인증 자동화보다 GKE GitOps end-to-end 검증을 먼저 안정화하기 위해 |
+| GitHub OIDC/WIF는 초기 수동 구성으로 검증 | 인증 자동화보다 GKE GitOps end-to-end 검증을 먼저 안정화하기 위해 |
 | image tag는 초기 수동 manifest 갱신 | 자동 image updater 도입 전 CI와 GitOps 책임 분리를 단순하게 검증하기 위해 |
 | Ingress는 host rule 없이 External IP로 검증 | 초기 버전에서 domain, Cloud DNS, 인증서 의존성을 제거하기 위해 |
 | Argo CD Application을 `k8s/` 경로에 연결 | Git 저장소의 Kubernetes manifest를 desired state로 사용하는 GitOps 흐름을 명확히 하기 위해 |
@@ -199,7 +199,7 @@ gcp-gke-gitops-pipeline/
 ## Scope And Limitations
 
 - 이 저장소는 포트폴리오/학습 목적의 GCP GKE GitOps 프로젝트입니다.
-- credential, token, secret 값은 포함하지 않습니다. 현재 `k8s/deployment.yaml`에는 GitHub Actions CI 검증에 사용한 Artifact Registry image URI가 반영되어 있으며, 공개용 정리 단계에서 placeholder 복원 여부를 결정합니다.
+- credential, token, secret 값은 포함하지 않습니다. 공개 repo의 `k8s/deployment.yaml`은 계정별 Artifact Registry image URI 대신 placeholder를 유지하며, 실제 검증 image와 증거는 `docs/07-validation.md`와 `docs/images/`에 분리해 기록합니다. 반면 `gitops/argocd-app.yaml`의 `repoURL`은 secret이 아닌 공개 repository 주소이므로 실제 Argo CD sync 증거를 위해 유지합니다.
 - Terraform remote backend는 아직 구성하지 않았고, 현재는 기본 local state 기준입니다.
 - GCP `terraform apply`가 완료되어 VPC, subnet, Artifact Registry, GKE cluster, node pool, node service account, IAM binding이 생성되었습니다.
 - GKE cluster는 CLI 기준 `RUNNING`, node 수 `2`로 확인됐고, `kubectl get nodes`에서 두 node 모두 `Ready` 상태로 확인됐습니다.
@@ -207,8 +207,8 @@ gcp-gke-gitops-pipeline/
 - External HTTP(S) Load Balancer는 Terraform에서 별도 생성하지 않고, GKE Ingress 적용 시 GKE Ingress Controller가 생성하는 흐름을 전제로 합니다.
 - Cloud DNS, Managed Certificate, static IP, HTTPS 고정 구성은 아직 포함하지 않았습니다.
 - Argo CD 설치/bootstrap과 Application sync/health 검증을 완료했습니다.
-- CI workflow는 image build/push 중심이며, 초기 image tag 반영은 수동 manifest 갱신으로 진행합니다. GitHub Actions가 push한 image tag를 `k8s/deployment.yaml`에 반영했으며, 자동 업데이트는 후순위입니다.
-- GitHub Actions의 Google Cloud 인증은 GitHub OIDC와 Workload Identity Federation을 사용하되, 초기 버전에서는 Terraform 자동화가 아니라 사전 수동 조건으로 문서화합니다.
+- CI workflow는 image build/push 중심이며, 초기 image tag 반영은 수동 manifest 갱신으로 검증했습니다. 공개 repo manifest는 placeholder로 복원했고, 자동 업데이트는 후순위입니다.
+- GitHub Actions의 Google Cloud 인증은 GitHub OIDC와 Workload Identity Federation을 수동 구성해 검증했으며, Terraform 자동화는 후순위로 남겼습니다.
 - 필요한 GCP API는 초기 버전에서 Terraform이 자동 활성화하지 않고, 배포 전 수동으로 활성화합니다.
 - `docs/07-validation.md`는 Terraform apply 완료, GKE cluster `RUNNING`, GKE node/pod, GKE node IAM policy, 수동 Artifact Registry image push, Deployment rollout, GKE image pull, Service/NEG annotation, Ingress backend/events, Ingress External IP HTTP 접근, GitHub Actions CI image push, Argo CD sync/health까지 기록했습니다.
 
@@ -216,10 +216,10 @@ gcp-gke-gitops-pipeline/
 
 ## Validation Targets
 
-아래 항목은 이 프로젝트가 실제 배포 단계에서 기록해야 할 검증 목표입니다. 현재 README는 수행된 검증으로 표시하지 않습니다.
+아래 항목은 이 프로젝트의 주요 검증 목표입니다. 완료된 항목은 실제 명령 결과 또는 캡처 증거를 기준으로 표시했습니다.
 
 - [x] 사전 GCP API 활성화 확인
-- [ ] GitHub OIDC/Workload Identity Federation 사전 구성 확인
+- [x] GitHub OIDC/Workload Identity Federation 사전 구성 확인
 - [x] `terraform init`
 - [x] `terraform validate`
 - [x] `terraform plan`
@@ -232,12 +232,34 @@ gcp-gke-gitops-pipeline/
 - [x] 수동 Artifact Registry image push 확인
 - [x] GKE image pull 확인
 - [x] sample app Deployment rollout 확인
-- [ ] GCP Console 또는 CLI에서 VPC, subnet, GKE, Artifact Registry 확인
+- [x] GCP Console 또는 CLI에서 VPC, subnet, GKE, Artifact Registry 확인
 - [x] `kubectl get svc`
 - [x] Service NEG annotation과 Ingress backend/events 확인
 - [x] GKE Ingress external address와 HTTP access 확인
 - [x] GitHub Actions workflow image push 확인
 - [x] Argo CD Application sync/health 확인
+
+---
+
+## Validation Evidence
+
+핵심 검증 캡처는 아래와 같습니다. 전체 캡처 목록과 용도는 [`docs/images/README.md`](docs/images/README.md)에 정리했습니다.
+
+| Terraform apply | GKE cluster running |
+|---|---|
+| <img src="docs/images/01-terraform-apply-success.png" alt="Terraform apply success" width="420"> | <img src="docs/images/02-gke-cluster-running.png" alt="GKE cluster running with two nodes" width="420"> |
+
+| App rollout and image pull | Ingress external IP HTTP 200 |
+|---|---|
+| <img src="docs/images/06-sample-app-deployment-rollout-image-pull.png" alt="Sample app rollout and successful Artifact Registry image pull" width="420"> | <img src="docs/images/13-ingress-external-ip-http-200.png" alt="Ingress external IP and HTTP 200 response" width="420"> |
+
+| GitHub Actions CI | Artifact Registry image tags |
+|---|---|
+| <img src="docs/images/09-github-actions-ci-success.png" alt="GitHub Actions CI workflow success" width="420"> | <img src="docs/images/18-gcp-artifact-registry-console-tags.png" alt="Artifact Registry manual and commit SHA image tags" width="420"> |
+
+| Argo CD sync and health | GCP Load Balancer detail |
+|---|---|
+| <img src="docs/images/16-argocd-ui-synced-healthy.png" alt="Argo CD UI showing Synced and Healthy application" width="420"> | <img src="docs/images/17-gcp-load-balancer-ingress-detail.png" alt="GCP Load Balancer detail created by GKE Ingress" width="420"> |
 
 ---
 
@@ -295,11 +317,11 @@ gcloud container clusters get-credentials gke-gitops-cluster \
   --project YOUR_GCP_PROJECT_ID
 ```
 
-5. 실제 배포 전 placeholder를 교체합니다.
+5. 실제 배포 전 placeholder를 교체합니다. 검증 완료 후에도 공개 repo의 Kubernetes workload manifest는 계정별 image URI를 고정하지 않습니다.
 
 - `k8s/deployment.yaml`: Artifact Registry image URI와 tag
 - `k8s/ingress.yaml`: host rule 없이 External IP 기반 검증
-- `gitops/argocd-app.yaml`: 실제 GitHub repository URL
+- `gitops/argocd-app.yaml`: fork/reuse 시 본인 GitHub repository URL
 - `.github/workflows/ci.yml`: `PROJECT_ID`, `REGION`, `ARTIFACT_REGISTRY_REPOSITORY`
 - GitHub repository secrets: `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`
 
@@ -311,7 +333,7 @@ kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/ingress.yaml
 ```
 
-7. GitOps 검증 단계에서는 Argo CD 설치 후 `gitops/argocd-app.yaml`을 실제 repository 값으로 수정해 적용합니다.
+7. GitOps 검증 단계에서는 Argo CD 설치 후 `gitops/argocd-app.yaml`의 repository 값을 확인하고 적용합니다.
 
 ---
 
@@ -341,8 +363,6 @@ kubectl apply -f k8s/ingress.yaml
 - Cloud DNS, Managed Certificate, static IP 기반 HTTPS Ingress 구성 검토
 - GitHub OIDC와 Workload Identity Federation 구성을 Terraform으로 자동화할지 검토
 - CI build 결과 image tag 자동 반영 전략 검토
-- `docs/07-validation.md`에 실제 명령어 실행 결과와 검증 증거 기록
-- `docs/08-troubleshooting.md`에 진행 중 발생한 의미 있는 문제와 해결 과정 기록
 
 ---
 
@@ -351,7 +371,7 @@ kubectl apply -f k8s/ingress.yaml
 | 영역 | 현재 상태 |
 |---|---|
 | Repository guidance | `CLAUDE.md`, `AGENTS.md` 작성됨 |
-| Documentation | `docs/00`~`docs/09` 구조 존재, 대부분 TODO 기반 초안 |
+| Documentation | `docs/00`~`docs/09` 구조 존재, 검증 기록과 troubleshooting 기록 반영됨 |
 | Terraform | 모든 모듈 구현 완료 (network, gke, artifact_registry). node location, GKE node service account IAM, node disk size 명시적 설정 포함. init/validate/plan/apply 완료. |
 | Kubernetes | Deployment rollout, Service 생성, host rule 없는 GCE Ingress 생성, Service NEG annotation, Ingress backend/events, External IP HTTP 200 응답, Argo CD Application sync 검증 완료 |
 | Application | Nginx 기반 placeholder app 존재 |

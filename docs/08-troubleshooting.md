@@ -12,7 +12,7 @@
 
 ### 2026-04-19 - GKE cluster 생성 중 SSD quota 초과
 
-- 발생 시점: `terraform apply -var="project_id=warm-castle-493809-s1"` 실행 중 `module.gke.google_container_cluster.primary` 생성 단계
+- 발생 시점: `terraform apply -var="project_id=[PROJECT_ID]"` 실행 중 `module.gke.google_container_cluster.primary` 생성 단계
 - 관련 영역: Terraform, GKE, quota
 - 영향 범위: Artifact Registry, service account, IAM binding, VPC, subnet은 생성되었으나 GKE cluster가 정상 생성되지 않고 `ERROR` 상태로 남음
 - 증상:
@@ -23,7 +23,7 @@
 - 확인한 명령/로그:
 
 ```text
-terraform apply -var="project_id=warm-castle-493809-s1"
+terraform apply -var="project_id=[PROJECT_ID]"
 ```
 
 ```text
@@ -46,7 +46,7 @@ module.network.google_compute_subnetwork.gke
 ```
 
 ```text
-gcloud container clusters list --region asia-northeast3 --project warm-castle-493809-s1
+gcloud container clusters list --region asia-northeast3 --project [PROJECT_ID]
 NAME                LOCATION         MASTER_VERSION                         MASTER_IP     MACHINE_TYPE  NODE_VERSION        NUM_NODES  STATUS  STACK_TYPE
 gke-gitops-cluster  asia-northeast3  1.35.1-gke.1396002 (! 13 days left !)  34.22.82.153  e2-medium     1.35.1-gke.1396002  3          ERROR   IPV4
 ```
@@ -54,7 +54,7 @@ gke-gitops-cluster  asia-northeast3  1.35.1-gke.1396002 (! 13 days left !)  34.2
 1차 quota 완화 수정 후 apply 재시도에서 발생한 추가 오류:
 
 ```text
-terraform apply -var="project_id=warm-castle-493809-s1"
+terraform apply -var="project_id=[PROJECT_ID]"
 ```
 
 ```text
@@ -89,23 +89,23 @@ Disk cannot be smaller than the chosen image 'gke-1351-gke1396002-cos-125-19216-
 - 관련 영역: Terraform CLI 입력값, Google provider, project ID
 - 영향 범위: Google provider가 project ID를 포함한 API URL을 만들 때 줄바꿈 문자가 포함되어 URL parsing과 service account 생성 요청이 실패함
 - 증상:
-  - Artifact Registry와 Compute Network API URL에 `warm-castle-493809-s1\n`이 포함되어 `invalid control character in URL` 오류 발생
-  - service account 생성 요청에서 project 값 `warm-castle-493809-s1\n`이 project ID 정규식과 맞지 않는다는 `badRequest` 발생
+  - Artifact Registry와 Compute Network API URL에 `[PROJECT_ID]\n`이 포함되어 `invalid control character in URL` 오류 발생
+  - service account 생성 요청에서 project 값 `[PROJECT_ID]\n`이 project ID 정규식과 맞지 않는다는 `badRequest` 발생
 - 확인한 명령/로그:
 
 ```text
-Error creating Repository: parse "https://artifactregistry.googleapis.com/v1/projects/warm-castle-493809-s1
+Error creating Repository: parse "https://artifactregistry.googleapis.com/v1/projects/[PROJECT_ID]
 /locations/asia-northeast3/repositories?repository_id=gke-gitops-images":
 net/url: invalid control character in URL
 ```
 
 ```text
-Error creating service account: googleapi: Error 400: warm-castle-493809-s1
+Error creating service account: googleapi: Error 400: [PROJECT_ID]
  does not match [a-z\d][a-z\d\-]*., badRequest
 ```
 
 ```text
-Error creating Network: parse "https://compute.googleapis.com/compute/v1/projects/warm-castle-493809-s1
+Error creating Network: parse "https://compute.googleapis.com/compute/v1/projects/[PROJECT_ID]
 /global/networks": net/url: invalid control character in URL
 ```
 
@@ -114,13 +114,13 @@ Error creating Network: parse "https://compute.googleapis.com/compute/v1/project
   - `project_id`를 반드시 한 줄 문자열로 전달한다.
 
 ```bash
-terraform apply -var="project_id=warm-castle-493809-s1"
+terraform apply -var="project_id=[PROJECT_ID]"
 ```
 
   - shell 변수를 쓸 경우 newline이 없는지 확인한다.
 
 ```bash
-PROJECT_ID="warm-castle-493809-s1"
+PROJECT_ID="[PROJECT_ID]"
 printf '%q\n' "$PROJECT_ID"
 terraform apply -var="project_id=${PROJECT_ID}"
 ```
@@ -128,7 +128,7 @@ terraform apply -var="project_id=${PROJECT_ID}"
   - `terraform.tfvars`를 사용할 경우 아래처럼 한 줄로만 작성한다.
 
 ```hcl
-project_id = "warm-castle-493809-s1"
+project_id = "[PROJECT_ID]"
 ```
 
 - 검증: 한 줄 `project_id` 값으로 `terraform apply`를 재시도해 `Apply complete! Resources: 8 added, 0 changed, 0 destroyed.` 결과를 확인했다.
@@ -405,11 +405,11 @@ gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_ID}" \
     - Workload Identity Pool `github-actions` state `ACTIVE`
     - provider list는 비어 있어 provider 미생성 확인
   - 추가 실패와 해결:
-    - 실제 GitHub repository 값을 `JJong-03/gcp-gke-gitops-pipeline`으로 바꾼 뒤 provider 생성을 재시도했으나, `--display-name="GitHub JJong-03/gcp-gke-gitops-pipeline"` 값이 32자를 초과해 `INVALID_ARGUMENT: display name must be less than or equal to 32 characters` 오류가 발생했다.
+    - 실제 GitHub repository 값을 `[OWNER]/[REPOSITORY]`로 바꾼 뒤 provider 생성을 재시도했으나, `--display-name="GitHub [OWNER]/[REPOSITORY]"` 값이 32자를 초과해 `INVALID_ARGUMENT: display name must be less than or equal to 32 characters` 오류가 발생했다.
     - provider ID와 repository condition은 유지하고 display name만 `GitHub Actions`로 줄여 provider 생성을 완료했다.
   - 최종 확인 완료:
-    - provider `projects/258687934668/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline` state `ACTIVE`
-    - provider attribute condition `assertion.repository=='JJong-03/gcp-gke-gitops-pipeline'`
+    - provider `projects/[PROJECT_NUMBER]/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline` state `ACTIVE`
+    - provider attribute condition `assertion.repository=='[OWNER]/[REPOSITORY]'`
     - deploy service account IAM policy에서 repository-scoped `roles/iam.workloadIdentityUser` principal binding 확인
   - 아직 필요한 검증:
     - GitHub repository variables/secrets 등록
@@ -427,7 +427,7 @@ gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_ID}" \
 - 관련 영역: GitHub Actions, repository variables/secrets, CI image build
 - 영향 범위: repository push는 성공했고 workflow run은 생성됐지만, `build` job이 실패해 Docker image build와 Artifact Registry push 검증이 완료되지 않음
 - 증상:
-  - GitHub repository `JJong-03/gcp-gke-gitops-pipeline`에 commit `c28b5d1` push 완료
+  - GitHub repository `[OWNER]/[REPOSITORY]`에 commit `c28b5d1` push 완료
   - GitHub Actions run `Build GKE GitOps pipeline baseline #1` 생성
   - run #1 status `Failure`, total duration `7s`
   - `Build image` job이 exit code `1`
@@ -436,8 +436,8 @@ gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_ID}" \
 
 ```text
 git remote -v
-origin  https://github.com/JJong-03/gcp-gke-gitops-pipeline.git (fetch)
-origin  https://github.com/JJong-03/gcp-gke-gitops-pipeline.git (push)
+origin  https://github.com/[OWNER]/[REPOSITORY].git (fetch)
+origin  https://github.com/[OWNER]/[REPOSITORY].git (push)
 
 git rev-parse HEAD
 c28b5d1084c496897667321df6102090f9ad0150
@@ -462,12 +462,12 @@ Push image: 0s
 
 ```text
 Variables:
-GCP_PROJECT_ID = warm-castle-493809-s1
+GCP_PROJECT_ID = [PROJECT_ID]
 GCP_REGION = asia-northeast3
 ARTIFACT_REGISTRY_REPOSITORY = gke-gitops-images
 
 Secrets:
-GCP_WORKLOAD_IDENTITY_PROVIDER = projects/258687934668/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline
+GCP_WORKLOAD_IDENTITY_PROVIDER = projects/[PROJECT_NUMBER]/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline
 GCP_SERVICE_ACCOUNT = github-actions-deploy@[PROJECT_ID].iam.gserviceaccount.com
 ```
 

@@ -22,13 +22,19 @@
 ${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/sample-app:${GITHUB_SHA}
 ```
 
-현재 `k8s/deployment.yaml`의 image 값은 GitHub Actions가 push한 Artifact Registry image다.
+공개 repo의 `k8s/deployment.yaml` image 값은 계정별 Artifact Registry URI 노출을 피하기 위해 placeholder로 유지한다.
+
+```text
+your-region-docker.pkg.dev/your-project-id/your-repository-id/sample-app:tag
+```
+
+실제 검증에서는 GitHub Actions가 push한 다음 형식의 Artifact Registry image를 manifest에 임시 반영해 Argo CD sync와 rollout을 확인했다.
 
 ```text
 asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f
 ```
 
-초기 버전에서는 Artifact Registry에 push된 image URI를 `k8s/deployment.yaml`에 수동으로 반영한다. 자동 image updater나 CI 기반 manifest PR 생성은 후순위로 둔다.
+초기 버전에서는 실제 배포 시 Artifact Registry에 push된 image URI를 `k8s/deployment.yaml`에 수동으로 반영한다. 자동 image updater나 CI 기반 manifest PR 생성은 후순위로 둔다.
 
 수동 image build/push smoke test를 할 때는 로컬 Docker CLI와 Docker daemon이 필요하다.
 
@@ -45,7 +51,7 @@ docker push "${IMAGE}"
 asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:manual-20260419201633
 ```
 
-이 image URI를 `k8s/deployment.yaml`에 반영했고, GKE Pod 생성으로 image pull을 검증했다. 이후 GitHub Actions push workflow로 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image push를 검증했고, 다음 GitOps 검증을 위해 `k8s/deployment.yaml`의 image도 이 CI tag로 갱신했다. 자세한 troubleshooting 경과는 `docs/08-troubleshooting.md`에 기록한다.
+검증 당시 이 image URI를 `k8s/deployment.yaml`에 반영했고, GKE Pod 생성으로 image pull을 검증했다. 이후 GitHub Actions push workflow로 `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image push를 검증했고, GitOps 검증을 위해 `k8s/deployment.yaml`의 image도 이 CI tag로 갱신했다. 공개 repo 정리 후 manifest는 placeholder로 복원했으며, 실제 검증 image와 증거는 `docs/07-validation.md`와 `docs/images/`에 남긴다. 자세한 troubleshooting 경과는 `docs/08-troubleshooting.md`에 기록한다.
 
 ## Kubernetes Manifest 기준
 
@@ -74,14 +80,14 @@ asia-northeast3-docker.pkg.dev/[PROJECT_ID]/gke-gitops-images/sample-app:manual-
 
 | 항목 | 현재 상태 | 조치 |
 |---|---|---|
-| Image URI | `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` image URI 반영 완료 | Argo CD sync로 Git desired state 배포 확인 |
+| Image URI | 공개 manifest는 placeholder 유지, 검증 당시 CI tag image로 Argo CD sync 완료 | 실제 배포 시 Artifact Registry image URI로 교체 |
 | Ingress host | host rule 제거됨 | GKE Ingress가 할당한 External IP로 HTTP 접근 확인 |
-| Argo CD repoURL | `https://github.com/JJong-03/gcp-gke-gitops-pipeline.git` 반영 완료 | Argo CD Application 적용 |
+| Argo CD repoURL | `gitops/argocd-app.yaml`에 실제 repository URL 반영 완료 | Argo CD Application 적용 |
 | Namespace | `default` | 초기 버전에서는 유지 |
 
 ## Artifact Registry Image Pull 기준
 
-GKE가 `k8s/deployment.yaml`에 반영된 Artifact Registry image를 pull할 수 있어야 한다. 초기 버전은 별도 GKE node service account를 사용하는 전략이다.
+실제 배포 시 GKE가 `k8s/deployment.yaml`에 반영된 Artifact Registry image를 pull할 수 있어야 한다. 초기 버전은 별도 GKE node service account를 사용하는 전략이다.
 
 | 항목 | 기준 |
 |---|---|

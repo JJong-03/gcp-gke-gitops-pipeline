@@ -12,24 +12,29 @@
 | 완료 | 실행했고 기대 결과와 일치함 |
 | 실패 | 실행했지만 실패 또는 기대 결과 불일치 |
 | 보류 | 외부 조건이나 결정이 필요함 |
+| not covered | 이번 검증 증거 범위에 포함하지 않음 |
+| future validation | 후속 개선 단계에서 검증 예정 |
 
 ## 검증 매트릭스
 
 | 단계 | 명령/확인 항목 | 기대 결과 | 실제 결과 | 상태 | 증거/링크 | 관련 문서 |
 |---|---|---|---|---|---|---|
 | GCP API enablement | `gcloud services enable compute.googleapis.com container.googleapis.com artifactregistry.googleapis.com serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com` | 필요한 API가 활성화됨 | 수동 활성화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
-| GitHub OIDC/WIF GCP prerequisite | Workload Identity Provider, deploy service account, `roles/iam.workloadIdentityUser` 확인 | GitHub Actions가 service account로 인증 가능한 GCP 측 사전조건 구성 | deploy service account, Artifact Registry writer 권한, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료 | 완료 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
+| GitHub OIDC/WIF GCP manual setup | Workload Identity Provider, deploy service account, `roles/iam.workloadIdentityUser` 확인 | GitHub Actions가 service account로 인증 가능한 GCP 측 수동 구성 | deploy service account, Artifact Registry writer 권한, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료 | 완료 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
 | GitHub repository variables/secrets | Repository Actions variables/secrets 확인 | workflow가 project/region/repository 값과 WIF secret을 사용할 수 있음 | 등록 후 commit `e3a889e...` push에서 CI image가 Artifact Registry에 생성되어 간접 검증 완료 | 완료 | 2026-04-19 GitHub/GCP | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
 | Terraform init | `terraform init` | provider와 module 초기화 성공 | `hashicorp/google v5.45.2` 설치, 모듈 초기화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform validate | `terraform validate` | Terraform syntax와 provider schema 검증 성공 | `Success! The configuration is valid.` | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform plan (1차) | `terraform plan -var="project_id=..."` | VPC, subnet, GKE, Artifact Registry 생성 계획 확인 | 8 resources to add. `readers["gke_node"]` key가 정적 map으로 정상 resolve됨 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform plan (disk 수정 후) | `terraform plan -var="project_id=..."` | GKE cluster replace + node pool create 계획 확인 | 2 to add, 0 to change, 1 to destroy. cluster replace(tainted), node pool create. 기존 리소스 변경 없음. | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
-| Terraform apply (1차) | `terraform apply -var="project_id=warm-castle-493809-s1"` | GCP 리소스 생성 성공 | Artifact Registry, SA, IAM, VPC, subnet은 생성 완료. GKE cluster는 SSD quota 초과로 `ERROR` 상태. node pool 미생성. | 실패 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/03-terraform-plan.md`, `docs/08-troubleshooting.md` |
-| Terraform apply (2차 — disk 10GB) | `terraform apply -var="project_id=warm-castle-493809-s1"` | GKE cluster와 node pool 정상 생성 | GKE COS 이미지 최소 크기 12GB보다 작은 10GB 지정으로 실패. 이후 cluster `node_config.disk_size_gb = 20`으로 수정해 3차 apply에서 해결됨. | 실패 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/03-terraform-plan.md`, `docs/08-troubleshooting.md` |
+| Terraform apply (1차) | `terraform apply -var="project_id=[PROJECT_ID]"` | GCP 리소스 생성 성공 | Artifact Registry, SA, IAM, VPC, subnet은 생성 완료. GKE cluster는 SSD quota 초과로 `ERROR` 상태. node pool 미생성. | 실패 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/03-terraform-plan.md`, `docs/08-troubleshooting.md` |
+| Terraform apply (2차 — disk 10GB) | `terraform apply -var="project_id=[PROJECT_ID]"` | GKE cluster와 node pool 정상 생성 | GKE COS 이미지 최소 크기 12GB보다 작은 10GB 지정으로 실패. 이후 cluster `node_config.disk_size_gb = 20`으로 수정해 3차 apply에서 해결됨. | 실패 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/03-terraform-plan.md`, `docs/08-troubleshooting.md` |
 | Terraform plan (disk 20GB 수정 후) | `terraform plan -var="project_id=..."` | GKE cluster replace + node pool create, disk 20GB 반영 확인 | 2 to add, 0 to change, 1 to destroy. cluster node_config `disk_size_gb: 10 → 20` 반영. node pool `disk_size_gb = 30`, `node_locations = [asia-northeast3-a, asia-northeast3-c]` 정상. | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
-| Terraform apply (3차 — disk 20GB) | `terraform apply -var="project_id=warm-castle-493809-s1"` | GKE cluster와 node pool 정상 생성 | `Apply complete! Resources: 8 added, 0 changed, 0 destroyed.` Outputs: `gke_cluster_name=gke-gitops-cluster`, `gke_cluster_location=asia-northeast3`, `artifact_registry_repository_id=gke-gitops-images`, `gke_node_service_account_email=gke-gitops-node@warm-castle-493809-s1.iam.gserviceaccount.com`, `network_name=gke-gitops-vpc`, `subnet_name=gke-gitops-subnet` | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md`, `docs/08-troubleshooting.md` |
-| GKE cluster status | `gcloud container clusters list --region asia-northeast3 --project [PROJECT_ID]` | cluster `STATUS`가 `RUNNING`이고 node 수가 node pool 설계와 일치 | `gke-gitops-cluster`가 `RUNNING`, `NUM_NODES`는 `2` | 완료 | 2026-04-19 local | `docs/04-gke-bootstrap.md` |
-| GCP Console/CLI | VPC, subnet, GKE, Artifact Registry 확인 | Terraform 계획과 생성 리소스 일치 | 미실행 | 대기 | TODO | `docs/03-terraform-plan.md` |
+| Terraform apply (3차 — disk 20GB) | `terraform apply -var="project_id=[PROJECT_ID]"` | GKE cluster와 node pool 정상 생성 | `Apply complete! Resources: 8 added, 0 changed, 0 destroyed.` Outputs: `gke_cluster_name=gke-gitops-cluster`, `gke_cluster_location=asia-northeast3`, `artifact_registry_repository_id=gke-gitops-images`, `gke_node_service_account_email=gke-gitops-node@[PROJECT_ID].iam.gserviceaccount.com`, `network_name=gke-gitops-vpc`, `subnet_name=gke-gitops-subnet` | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md`, `docs/08-troubleshooting.md` |
+| GKE cluster status | `gcloud container clusters list --region asia-northeast3 --project [PROJECT_ID]`, GCP Console cluster 확인 | cluster `STATUS`가 `RUNNING`이고 node 수가 node pool 설계와 일치 | `gke-gitops-cluster`가 `RUNNING`, `NUM_NODES`는 `2`. GCP Console 캡처로 cluster running 상태와 node 수 확인 | 완료 | 2026-04-19 local, `docs/images/02-gke-cluster-running.png` | `docs/04-gke-bootstrap.md` |
+| GCP Console - VPC/subnet secondary ranges | GCP Console VPC subnet 상세 확인 | Terraform network module의 subnet과 Pod/Service secondary IP range가 GCP에 생성됨 | `gke-gitops-subnet`과 Pod/Service secondary IP range가 Console 캡처로 확인됨 | 완료 | `docs/images/19-gcp-vpc-subnet-secondary-ranges.png` | `docs/03-terraform-plan.md`, `docs/images/README.md` |
+| GCP Console - Artifact Registry tags | GCP Console Artifact Registry image tags 확인 | 수동 push tag와 GitHub Actions commit SHA tag가 repository에 존재 | `manual-*` tag와 commit SHA tag가 Console 캡처로 확인됨 | 완료 | `docs/images/18-gcp-artifact-registry-console-tags.png` | `docs/05-app-deployment.md`, `docs/06-gitops-cicd.md`, `docs/images/README.md` |
+| GCP Console - Load Balancer / Ingress | GCP Console Load Balancer 상세 확인 | GKE Ingress가 생성한 external load balancer와 backend 연결 확인 | Ingress external IP와 backend 연결이 Console Load Balancer 상세 캡처로 확인됨 | 완료 | `docs/images/17-gcp-load-balancer-ingress-detail.png` | `docs/05-app-deployment.md`, `docs/images/README.md` |
+| GCP Console/CLI - future validation scope | Cloud DNS, Managed Certificate, static IP, HTTPS 고정 구성, Terraform remote backend | 초기 범위 밖 항목은 완료로 표시하지 않고 후속 개선으로 관리 | 초기 버전 검증 증거에 포함하지 않음. README의 Planned Improvements에 남김 | future validation | not covered by current captures | `README.md` |
 | GKE node service account IAM | Terraform output, project IAM policy, Artifact Registry IAM policy 확인 | GKE node service account에 project-level `roles/container.defaultNodeServiceAccount`와 repository-scoped `roles/artifactregistry.reader`가 부여됨 | 두 IAM binding 모두 GKE node service account에 부여됨 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md`, `docs/05-app-deployment.md` |
 | GKE credentials | `gcloud container clusters get-credentials` | kubeconfig context 생성 | kubeconfig entry 생성 후 로컬 `kubectl` 접근 성공 | 완료 | 2026-04-19 local | `docs/04-gke-bootstrap.md` |
 | GKE nodes | `kubectl get nodes` | node가 `Ready` 상태 | node 2개가 모두 `Ready`, version `v1.35.1-gke.1396002` | 완료 | 2026-04-19 local | `docs/04-gke-bootstrap.md` |
@@ -42,7 +47,7 @@
 | Ingress | `kubectl get ingress sample-app` | host rule 없는 Ingress의 external address 또는 provisioning 상태 확인 | GKE class annotation 반영 후 External IP 할당 완료. hosts `*`, port `80` | 완료 | 2026-04-19 local | `docs/05-app-deployment.md`, `docs/08-troubleshooting.md` |
 | Ingress backend/events | `kubectl describe ingress sample-app`, `gcloud compute backend-services get-health` | backend 연결 상태와 events 확인 | UrlMap, TargetProxy, ForwardingRule 생성. sample app backend `HEALTHY` 확인 | 완료 | 2026-04-19 local | `docs/05-app-deployment.md` |
 | External access | External IP HTTP 접근 확인 | placeholder app 응답 확인 | 전파 대기 후 `curl http://[INGRESS_IP]/`에서 `HTTP/1.1 200 OK`, `Via: 1.1 google`, placeholder HTML 응답 확인 | 완료 | 2026-04-19 local | `docs/05-app-deployment.md` |
-| GitHub repository push | `git push -u origin main`, GitHub repository 확인 | main branch에 repository baseline push | GitHub repository `JJong-03/gcp-gke-gitops-pipeline`에 commit `c28b5d1` push 완료, workflow run #1 생성 | 완료 | 2026-04-19 GitHub | `docs/06-gitops-cicd.md` |
+| GitHub repository push | `git push -u origin main`, GitHub repository 확인 | main branch에 repository baseline push | GitHub repository `[OWNER]/[REPOSITORY]`에 commit `c28b5d1` push 완료, workflow run #1 생성 | 완료 | 2026-04-19 GitHub | `docs/06-gitops-cicd.md` |
 | GitHub Actions build | workflow `build` job 확인 | Docker image build 성공 | commit `e3a889e...` push 후 Artifact Registry에 matching image tag가 생성되어 build/push flow 성공 확인 | 완료 | 2026-04-19 GitHub/GCP | `docs/06-gitops-cicd.md` |
 | Artifact Registry push (CI) | GitHub Actions workflow `push` job 또는 registry 확인 | `sample-app:${GITHUB_SHA}` image push 확인 | `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` 생성 확인. Digest `sha256:5612a9a865a5037fbf4c0a3f742251ed54d54f9396d2e517544f000efcb3c001` | 완료 | 2026-04-19 GCP | `docs/06-gitops-cicd.md` |
 | Argo CD sync | Argo CD Application 확인 | sync status `Synced`, health `Healthy` | Argo CD 설치 후 Application `Synced/Healthy`, revision `13572bdb7928e7bd59393738091bd925e06b1163`, Deployment `2/2` rollout 완료 | 완료 | 2026-04-19 local/GKE | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
@@ -123,7 +128,7 @@
 - 상태: 완료
 - 관련 이슈: `docs/08-troubleshooting.md`의 GKE SSD quota 및 disk size troubleshooting 해결 확인. GKE credentials와 node 상태 검증은 다음 단계에서 진행 필요.
 
-### 2026-04-19 - GKE cluster status와 로컬 kubectl prerequisite
+### 2026-04-19 - GKE cluster status와 로컬 kubectl 준비
 
 - 명령: `gcloud container clusters list --region asia-northeast3 --project [PROJECT_ID]`
 - 기대 결과: `gke-gitops-cluster`가 `RUNNING` 상태이고 node 수가 `asia-northeast3-a`, `asia-northeast3-c`의 node pool 구성과 일치
@@ -267,7 +272,7 @@
 - 상태: 완료
 - 관련 이슈: `docs/08-troubleshooting.md` — GKE Ingress `ingressClassName` 단독 사용으로 ADDRESS 미할당
 
-### 2026-04-19 - GitHub Actions WIF prerequisite 1차 구성
+### 2026-04-19 - GitHub Actions WIF 수동 구성 1차
 
 - 명령: `gcloud iam service-accounts create github-actions-deploy --project=[PROJECT_ID] --display-name="GitHub Actions deploy service account"`
 - 기대 결과: GitHub Actions가 impersonation할 deploy service account 생성
@@ -291,19 +296,19 @@
 - 관련 이슈: `docs/08-troubleshooting.md` — WIF provider 생성 명령 줄바꿈 및 placeholder repo 값
 - 다음 검증: 실제 GitHub `OWNER/REPOSITORY` 값을 확정한 뒤 provider 생성, service account `roles/iam.workloadIdentityUser` binding, GitHub variables/secrets 등록
 
-### 2026-04-19 - GitHub Actions WIF prerequisite 완료
+### 2026-04-19 - GitHub Actions WIF 수동 구성 완료
 
-- 명령: `gcloud iam workload-identity-pools providers create-oidc gke-gitops-pipeline ... --display-name="GitHub Actions" --attribute-mapping=... --attribute-condition="assertion.repository=='JJong-03/gcp-gke-gitops-pipeline'"`
+- 명령: `gcloud iam workload-identity-pools providers create-oidc gke-gitops-pipeline ... --display-name="GitHub Actions" --attribute-mapping=... --attribute-condition="assertion.repository=='[OWNER]/[REPOSITORY]'"`
 - 기대 결과: 실제 GitHub repository에 제한된 Workload Identity Provider 생성
 - 실제 결과: `Created workload identity pool provider [gke-gitops-pipeline].`
 - 상태: 완료
 
 - 명령: `gcloud iam workload-identity-pools providers describe gke-gitops-pipeline --project=[PROJECT_ID] --location=global --workload-identity-pool=github-actions`
 - 기대 결과: provider state `ACTIVE`, issuer URI와 repository condition 확인
-- 실제 결과: provider name `projects/258687934668/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline`, state `ACTIVE`, issuer `https://token.actions.githubusercontent.com`, attribute condition `assertion.repository=='JJong-03/gcp-gke-gitops-pipeline'`
+- 실제 결과: provider name `projects/[PROJECT_NUMBER]/locations/global/workloadIdentityPools/github-actions/providers/gke-gitops-pipeline`, state `ACTIVE`, issuer `https://token.actions.githubusercontent.com`, attribute condition `assertion.repository=='[OWNER]/[REPOSITORY]'`
 - 상태: 완료
 
-- 명령: `gcloud iam service-accounts add-iam-policy-binding github-actions-deploy@[PROJECT_ID].iam.gserviceaccount.com --role=roles/iam.workloadIdentityUser --member=principalSet://.../attribute.repository/JJong-03/gcp-gke-gitops-pipeline`
+- 명령: `gcloud iam service-accounts add-iam-policy-binding github-actions-deploy@[PROJECT_ID].iam.gserviceaccount.com --role=roles/iam.workloadIdentityUser --member=principalSet://.../attribute.repository/[OWNER]/[REPOSITORY]`
 - 기대 결과: GitHub repository principal이 deploy service account를 impersonate 가능
 - 실제 결과: deploy service account IAM policy에 repository-scoped `roles/iam.workloadIdentityUser` binding 추가됨
 - 상태: 완료
@@ -317,7 +322,7 @@
 ### 2026-04-19 - GitHub repository push와 Actions run #1
 
 - 명령: `git push -u origin main`
-- 기대 결과: GitHub repository `JJong-03/gcp-gke-gitops-pipeline`의 `main` branch에 baseline commit push
+- 기대 결과: GitHub repository `[OWNER]/[REPOSITORY]`의 `main` branch에 baseline commit push
 - 실제 결과: commit `c28b5d1084c496897667321df6102090f9ad0150` push 완료. GitHub Actions workflow run #1 생성.
 - 상태: 완료
 
@@ -341,7 +346,8 @@
 - 상태: 완료
 
 - 참고: 기존 수동 push tag `manual-20260419201633`도 repository에 유지됨.
-- 다음 검증: `k8s/deployment.yaml` image를 CI tag로 수동 갱신하고, Argo CD가 Git desired state를 sync하는지 확인
+- 후속 검증: `k8s/deployment.yaml` image를 CI tag로 수동 갱신했고, 아래 Argo CD 검증에서 Git desired state sync와 rollout을 확인
+- 공개 repo 정리: 검증 완료 후 `k8s/deployment.yaml`의 image는 account-specific URI 대신 placeholder로 복원한다. 실제 검증 image tag와 결과는 이 문서와 `docs/images/` 증거로 유지한다.
 
 ### 2026-04-19 - Argo CD 설치와 GitOps sync 검증
 
