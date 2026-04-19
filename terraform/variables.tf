@@ -9,6 +9,26 @@ variable "region" {
   default     = "asia-northeast3"
 }
 
+variable "project_number" {
+  description = "Numeric GCP project number. Required for Workload Identity Federation principal identifiers."
+  type        = string
+}
+
+variable "enabled_project_services" {
+  description = "GCP APIs managed by Terraform for this project."
+  type        = set(string)
+  default = [
+    "compute.googleapis.com",
+    "container.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "serviceusage.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "sts.googleapis.com",
+  ]
+}
+
 variable "network_name" {
   description = "VPC network name."
   type        = string
@@ -94,4 +114,32 @@ variable "artifact_registry_repository_id" {
   description = "Artifact Registry repository ID for container images."
   type        = string
   default     = "gke-gitops-images"
+}
+
+variable "github_owner" {
+  description = "GitHub repository owner or organization used by the Workload Identity Provider condition."
+  type        = string
+}
+
+variable "github_repository" {
+  description = "GitHub repository name used by the Workload Identity Provider condition."
+  type        = string
+}
+
+variable "wif_pool_id" {
+  description = "Workload Identity Pool ID for GitHub Actions."
+  type        = string
+  default     = "github-actions"
+}
+
+variable "wif_provider_id" {
+  description = "Workload Identity Pool Provider ID for this repository."
+  type        = string
+  default     = "gke-gitops-pipeline"
+}
+
+variable "github_actions_deploy_service_account_id" {
+  description = "Service account ID used by GitHub Actions for Artifact Registry pushes."
+  type        = string
+  default     = "github-actions-deploy"
 }

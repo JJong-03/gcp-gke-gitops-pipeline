@@ -20,10 +20,10 @@
 |---|---|
 | 목표 | GCP GKE 기반 CI/CD와 GitOps 흐름을 Terraform, GitHub Actions, Argo CD로 구성 |
 | 리전 | `asia-northeast3` |
-| Infrastructure | VPC/Subnet, regional GKE, node pool, Artifact Registry, node IAM |
+| Infrastructure | VPC/Subnet, regional GKE, node pool, Artifact Registry, node IAM, GCP API/WIF Terraform definitions |
 | CI | GitHub Actions: Docker build, `main` push 시 Artifact Registry push |
 | CD | Argo CD: `k8s/` manifest를 GKE에 sync |
-| 현재 상태 | Terraform apply, GKE bootstrap, app rollout, Ingress HTTP 200, GitHub Actions image push, Argo CD `Synced/Healthy` 검증 완료 |
+| 현재 상태 | Terraform apply, GKE bootstrap, app rollout, Ingress HTTP 200, GitHub Actions image push, Argo CD `Synced/Healthy` 검증 완료. GCP API enablement와 GitHub Actions WIF prerequisite Terraform화 코드는 추가됐고 import/plan 검토가 남아 있음 |
 
 ## Architecture
 
@@ -32,7 +32,7 @@ User -> GKE Ingress -> Service -> sample-app Pods
 
 Developer -> GitHub Actions -> Artifact Registry
 Git repository -> Argo CD -> GKE Cluster
-Terraform -> VPC/Subnet, GKE, Artifact Registry
+Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF prerequisites
 ```
 
 핵심 설계는 CI와 CD의 책임 분리입니다. GitHub Actions는 이미지를 만들고 Artifact Registry에 push하며, Argo CD는 Git에 기록된 Kubernetes manifest를 클러스터에 동기화합니다.
@@ -72,7 +72,7 @@ Terraform -> VPC/Subnet, GKE, Artifact Registry
 
 | Path | Purpose |
 |---|---|
-| `terraform/` | GCP VPC, GKE, Artifact Registry modules |
+| `terraform/` | GCP API enablement, VPC, GKE, Artifact Registry, GitHub Actions WIF prerequisite modules |
 | `k8s/` | Deployment, Service, Ingress desired state |
 | `gitops/` | Argo CD Application bootstrap manifest |
 | `.github/workflows/` | GitHub Actions image build/push workflow |
@@ -104,7 +104,7 @@ Terraform -> VPC/Subnet, GKE, Artifact Registry
 ## Future Improvements
 
 - Terraform remote backend 구성
-- GitHub OIDC/WIF Terraform automation 또는 import 전략
+- GCP API enablement와 GitHub OIDC/WIF Terraform import 후 plan 안정화
 - Cloud DNS, static IP, Managed Certificate 기반 HTTPS Ingress
 - image tag 자동 반영 전략
 - Argo CD AppProject/RBAC hardening

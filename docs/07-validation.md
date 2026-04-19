@@ -9,6 +9,7 @@
 | 상태 | 의미 |
 |---|---|
 | 대기 | 아직 실행하지 않음 |
+| 진행 중 | 일부 구현 또는 검증은 완료됐지만 import, plan, 외부 확인 등 후속 검증이 남음 |
 | 완료 | 실행했고 기대 결과와 일치함 |
 | 실패 | 실행했지만 실패 또는 기대 결과 불일치 |
 | 보류 | 외부 조건이나 결정이 필요함 |
@@ -20,7 +21,9 @@
 | 단계 | 명령/확인 항목 | 기대 결과 | 실제 결과 | 상태 | 증거/링크 | 관련 문서 |
 |---|---|---|---|---|---|---|
 | GCP API enablement | `gcloud services enable compute.googleapis.com container.googleapis.com artifactregistry.googleapis.com serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com` | 필요한 API가 활성화됨 | 수동 활성화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
+| GCP API enablement Terraform code | `project_services` module, `terraform import`, `terraform plan` | 필요한 API가 `google_project_service`로 표현되고 `disable_on_destroy = false`가 적용됨 | 코드 추가, `terraform validate` 성공, 기존 8개 API import 완료. post-import `terraform plan` `No changes.` 확인 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | GitHub OIDC/WIF GCP manual setup | Workload Identity Provider, deploy service account, `roles/iam.workloadIdentityUser` 확인 | GitHub Actions가 service account로 인증 가능한 GCP 측 수동 구성 | deploy service account, Artifact Registry writer 권한, WIF pool/provider, repository-scoped `roles/iam.workloadIdentityUser` binding 완료 | 완료 | 2026-04-19 local, `docs/08-troubleshooting.md` | `docs/06-gitops-cicd.md` |
+| GitHub OIDC/WIF Terraform code | `github_wif` module, `terraform import`, `terraform plan` | deploy service account, Artifact Registry writer IAM, WIF pool/provider, repository-scoped impersonation binding이 Terraform으로 표현됨 | 코드 추가, `terraform validate` 성공, 5개 리소스 import 완료. post-import `terraform plan` `No changes.` 확인 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md`, `docs/06-gitops-cicd.md` |
 | GitHub repository variables/secrets | Repository Actions variables/secrets 확인 | workflow가 project/region/repository 값과 WIF secret을 사용할 수 있음 | 등록 후 commit `e3a889e...` push에서 CI image가 Artifact Registry에 생성되어 간접 검증 완료 | 완료 | 2026-04-19 GitHub/GCP | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
 | Terraform init | `terraform init` | provider와 module 초기화 성공 | `hashicorp/google v5.45.2` 설치, 모듈 초기화 완료 | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
 | Terraform validate | `terraform validate` | Terraform syntax와 provider schema 검증 성공 | `Success! The configuration is valid.` | 완료 | 2026-04-19 local | `docs/03-terraform-plan.md` |
@@ -66,6 +69,43 @@
 - 증거:
 - 관련 이슈:
 ```
+
+### 2026-04-19 - Bootstrap prerequisite Terraformization code validation
+
+- 명령: `terraform state list`
+- 기대 결과: 기존 Terraform state가 VPC, subnet, GKE, node IAM, Artifact Registry 범위만 포함하고 API/WIF 리소스는 아직 import되지 않았음을 확인
+- 실제 결과: 기존 state는 `module.network`, `module.gke`, `module.artifact_registry` 리소스 8개만 포함. `project_services`, `github_wif` 리소스는 아직 state에 없음
+- 상태: 완료
+
+- 변경 내용: `terraform/modules/project_services`와 `terraform/modules/github_wif` 추가. root module에 `enabled_project_services`, `project_number`, `github_owner`, `github_repository`, WIF ID 변수와 관련 output 연결
+- 상태: 진행 중
+
+- 명령: `terraform fmt -recursive`
+- 실제 결과: 성공
+- 상태: 완료
+
+- 명령: `terraform init`
+- 실제 결과: 성공. 신규 local module `project_services`, `github_wif` 등록, 기존 `hashicorp/google v5.45.2` provider 재사용
+- 상태: 완료
+
+- 명령: `terraform validate`
+- 실제 결과: `Success! The configuration is valid.`
+- 상태: 완료
+
+- 남은 검증: 기존 수동 활성화 API와 GitHub Actions WIF GCP-side 리소스를 import한 뒤 `terraform plan`에서 예상치 못한 destroy/recreate가 없는지 확인해야 함. `terraform apply`는 plan review 전 실행하지 않음.
+- 상태: 진행 중
+
+### 2026-04-19 - Bootstrap prerequisite Terraform import 및 plan 안정화
+
+- 대상: `module.project_services` 8개 API, `module.github_wif` 5개 리소스 (총 13개)
+- 명령: `terraform import` (TF_VAR 환경변수 기반, 리소스별 one-line command)
+- 실제 결과: 13개 import 모두 성공. post-import 초기 plan에서 WIF pool/provider `# forces replacement` 발생.
+- 원인: WIF pool/provider import ID가 project number 기반이라 state에 `project = "258687934668"`이 저장됐지만 코드는 `project = var.project_id`(문자 ID)여서 provider가 불일치 감지 후 recreate 계획
+- 코드 수정: `modules/github_wif/main.tf`의 WIF pool/provider `project` 필드를 `var.project_number`로 변경. `attribute_condition` 포맷도 GCP 저장 형식(`assertion.repository=='...'`)에 맞춤.
+- 추가 drift: `google_container_cluster.primary.node_config.disk_size_gb = 30 → 20`. default node pool 삭제 후 GCP API가 node_config를 기본값(30GB)으로 반환하기 때문. 실제 workload node는 `google_container_node_pool.primary`가 관리하므로 `lifecycle { ignore_changes = [node_config] }` 추가.
+- WIF description drift: import 당시 description이 GCP에 없어 plan에서 `+ description` 노이즈 발생. 코드에서 description 필드를 제거해 no-op으로 해결.
+- 최종 `terraform plan` 결과: `No changes. Your infrastructure matches the configuration.`
+- 상태: 완료
 
 ### 2026-04-19 - Terraform init / validate / fmt
 

@@ -27,3 +27,18 @@ output "artifact_registry_repository_id" {
   description = "Artifact Registry repository ID."
   value       = module.artifact_registry.repository_id
 }
+
+output "enabled_project_services" {
+  description = "GCP APIs represented in Terraform."
+  value       = module.project_services.enabled_services
+}
+
+output "github_actions_deploy_service_account_email" {
+  description = "Service account used by GitHub Actions for Artifact Registry pushes."
+  value       = module.github_wif.deploy_service_account_email
+}
+
+output "github_actions_workload_identity_provider" {
+  description = "Workload Identity Provider resource name for GitHub Actions authentication."
+  value       = module.github_wif.workload_identity_provider
+}

@@ -52,9 +52,11 @@ GitHub Repository
   -> GKE Cluster
 
 Terraform
+  -> GCP API enablement
   -> VPC/Subnet
   -> GKE Cluster and Node Pool
   -> Artifact Registry
+  -> GitHub Actions deploy service account and WIF prerequisites
 ```
 
 Target region:
@@ -72,6 +74,8 @@ GKE nodes use a dedicated node service account instead of relying on the default
 
 The sample app has been manually built, pushed to Artifact Registry, deployed to GKE, and verified for image pull. The Service and hostless GCE Ingress have been applied; Service NEG auto annotation, Ingress backend/events, External IP assignment, and HTTP 200 access are validated. GitHub Actions has pushed a commit-tagged image to Artifact Registry, and Argo CD has synced the `k8s/` desired state with `Synced/Healthy` status.
 
+The current Terraformization phase adds definitions for repeatable bootstrap prerequisites: GCP API enablement and the GCP-side GitHub Actions OIDC/WIF identity path. Existing manually created resources must be imported before `terraform apply`; GitHub repository secrets remain outside Terraform state.
+
 ---
 
 ## Scope
@@ -81,6 +85,8 @@ The sample app has been manually built, pushed to Artifact Registry, deployed to
 - GCP VPC and subnet
 - GKE cluster and node pool
 - Artifact Registry Docker repository
+- GCP API enablement with `google_project_service`
+- GitHub Actions deploy service account and GCP Workload Identity Federation prerequisites
 - Kubernetes `Deployment`, `Service`, and `Ingress`
 - Argo CD `Application` manifest
 - GitHub Actions workflow for image build and push
@@ -126,7 +132,9 @@ gcp-gke-gitops-pipeline/
 │  └─ modules/
 │     ├─ network/
 │     ├─ gke/
-│     └─ artifact_registry/
+│     ├─ artifact_registry/
+│     ├─ project_services/
+│     └─ github_wif/
 ├─ k8s/
 ├─ gitops/
 ├─ .github/workflows/
@@ -172,9 +180,11 @@ Documentation must describe the current implementation honestly. Do not present 
 
 1. Terraform must stay modular.
 2. Use these base modules:
+   - `project_services`
    - `network`
    - `gke`
    - `artifact_registry`
+   - `github_wif`
 3. Root Terraform should connect modules and remain readable.
 4. Keep `main.tf`, `variables.tf`, and `outputs.tf` responsibilities clear.
 5. Use variables for project-specific values.
@@ -214,8 +224,9 @@ Documentation must describe the current implementation honestly. Do not present 
 3. Do not blur CI and CD responsibilities.
 4. Keep image tag and manifest update strategy explicit when it is finalized.
 5. Keep `docs/06-gitops-cicd.md` aligned with `.github/workflows/ci.yml` and `gitops/argocd-app.yaml`.
-6. Initial GitHub Actions authentication uses GitHub OIDC and Workload Identity Federation as a documented manual prerequisite; Terraform automation for that setup is a later improvement.
-7. Initial image tag promotion is manual: update the Kubernetes manifest with the pushed Artifact Registry image URI, then let Argo CD sync Git desired state.
+6. GitHub Actions authentication uses GitHub OIDC and Workload Identity Federation; the GCP-side identity resources are represented in Terraform and existing manual resources must be imported before apply.
+7. GitHub repository secrets stay outside Terraform state and remain a manual prerequisite unless a separate decision changes that boundary.
+8. Initial image tag promotion is manual: update the Kubernetes manifest with the pushed Artifact Registry image URI, then let Argo CD sync Git desired state.
 
 ---
 

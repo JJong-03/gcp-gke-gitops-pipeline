@@ -31,6 +31,13 @@ resource "google_container_cluster" "primary" {
     disk_size_gb = 20
   }
 
+  # After the default node pool is deleted, GCP returns the cluster-level node_config
+  # with default values. This causes persistent drift against the code value above.
+  # Actual workload node settings are managed by google_container_node_pool.primary.
+  lifecycle {
+    ignore_changes = [node_config]
+  }
+
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pods_secondary_range_name
     services_secondary_range_name = var.services_secondary_range_name

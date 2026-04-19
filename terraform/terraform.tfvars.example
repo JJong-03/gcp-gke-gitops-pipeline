@@ -2,7 +2,20 @@
 # Do not commit terraform.tfvars with real project-specific values.
 
 project_id = "your-gcp-project-id"
-region     = "asia-northeast3"
+# Numeric project number, not the project ID. Example: "123456789012".
+project_number = "your-gcp-project-number"
+region         = "asia-northeast3"
+
+enabled_project_services = [
+  "compute.googleapis.com",
+  "container.googleapis.com",
+  "artifactregistry.googleapis.com",
+  "serviceusage.googleapis.com",
+  "cloudresourcemanager.googleapis.com",
+  "iam.googleapis.com",
+  "iamcredentials.googleapis.com",
+  "sts.googleapis.com",
+]
 
 network_name = "gke-gitops-vpc"
 subnet_name  = "gke-gitops-subnet"
@@ -22,3 +35,10 @@ gke_node_disk_size_gb = 30
 gke_node_service_account_id = "gke-gitops-node"
 
 artifact_registry_repository_id = "gke-gitops-images"
+
+github_owner      = "your-github-owner"
+github_repository = "gcp-gke-gitops-pipeline"
+
+wif_pool_id                                  = "github-actions"
+wif_provider_id                              = "gke-gitops-pipeline"
+github_actions_deploy_service_account_id     = "github-actions-deploy"

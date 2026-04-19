@@ -6,11 +6,11 @@
 
 ## Project Summary
 
-GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, GitHub Actions, Artifact Registry, Argo CD로 연결한 포트폴리오 프로젝트다. Terraform은 VPC, subnet, regional GKE cluster, node pool, node service account, Artifact Registry repository를 모듈 단위로 생성한다. GKE는 sample app workload를 실행하고, Artifact Registry는 GitHub Actions와 수동 검증에서 push한 Docker image를 저장한다. GitHub Actions는 CI로서 Docker image build와 Artifact Registry push를 담당하고, Argo CD는 CD로서 Git 저장소의 `k8s/` desired state를 GKE에 동기화한다.
+GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, GitHub Actions, Artifact Registry, Argo CD로 연결한 포트폴리오 프로젝트다. Terraform은 GCP API enablement, VPC, subnet, regional GKE cluster, node pool, node service account, Artifact Registry repository, GitHub Actions WIF prerequisite를 모듈 단위로 표현한다. GKE는 sample app workload를 실행하고, Artifact Registry는 GitHub Actions와 수동 검증에서 push한 Docker image를 저장한다. GitHub Actions는 CI로서 Docker image build와 Artifact Registry push를 담당하고, Argo CD는 CD로서 Git 저장소의 `k8s/` desired state를 GKE에 동기화한다.
 
 ## Architecture Highlights
 
-- Terraform module boundary는 `network`, `gke`, `artifact_registry`로 나누었다. `network`는 custom VPC, GKE subnet, Pod/Service secondary range를 관리하고, `gke`는 regional cluster와 node pool, node service account, GKE node IAM을 관리하며, `artifact_registry`는 Docker repository와 GKE image pull reader IAM을 관리한다.
+- Terraform module boundary는 `project_services`, `network`, `gke`, `artifact_registry`, `github_wif`로 나누었다. `project_services`는 필요한 GCP API enablement를 관리하고, `network`는 custom VPC, GKE subnet, Pod/Service secondary range를 관리하고, `gke`는 regional cluster와 node pool, node service account, GKE node IAM을 관리하며, `artifact_registry`는 Docker repository와 GKE image pull reader IAM을 관리한다. `github_wif`는 GitHub Actions deploy service account와 WIF GCP-side prerequisite를 표현한다.
 - GKE는 `asia-northeast3` regional cluster로 구성했다. node locations는 `asia-northeast3-a`, `asia-northeast3-c`이고, `node_count = 1`은 각 node location당 1개 node를 의미하므로 실제 초기 node 수는 2개로 검증됐다.
 - 네트워크는 VPC-native GKE를 전제로 한다. subnet 안에 Pod secondary range와 Service secondary range를 명시해 Pod IP와 Service IP를 GCP 네트워크 설계에 포함했다.
 - 사용자 트래픽은 GKE-managed GCE Ingress가 만든 External HTTP(S) Load Balancer에서 시작해 Kubernetes Service를 거쳐 sample app Pods로 전달된다.
@@ -32,6 +32,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 | Service and NEG | `ClusterIP` Service 생성, GKE Ingress용 NEG annotation/status와 service network endpoint group 확인 |
 | Ingress | GCE Ingress External IP 할당, backend health 확인, External IP HTTP 접근에서 `HTTP/1.1 200 OK` 확인 |
 | GitHub Actions | OIDC/WIF 수동 구성 후 `main` push workflow가 Artifact Registry image push까지 성공 |
+| Bootstrap Terraformization | GCP API enablement와 GitHub Actions WIF prerequisite Terraform code 추가 및 `terraform validate` 성공. 기존 수동 리소스 import와 post-import plan 검토 필요 |
 | Argo CD | Argo CD 설치, Application 생성, `Synced/Healthy`, CI image tag 기반 Deployment rollout 확인 |
 
 검증 캡처는 [docs/images/README.md](images/README.md)에 목록화되어 있고, README의 [Evidence](../README.md#evidence) 섹션에는 주요 캡처가 바로 보이도록 연결되어 있다.
@@ -51,7 +52,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 
 ## Design Tradeoffs
 
-- GitHub OIDC/WIF는 Terraform 자동화가 아니라 초기 수동 구성으로 검증했다. 목적은 인증 리소스 자동화보다 Terraform -> GKE -> Artifact Registry -> GitHub Actions -> Argo CD end-to-end 흐름을 먼저 검증하는 것이었고, repository 조건과 secret 값은 문서와 저장소에 노출하지 않는 편이 안전했다.
+- GitHub OIDC/WIF는 먼저 수동 구성으로 end-to-end 흐름을 검증한 뒤, GCP-side prerequisite만 Terraform import 대상으로 전환하는 전략을 선택했다. 이 방식은 이미 검증된 리소스를 recreate하지 않고 state로 편입할 수 있으며, GitHub secret 값은 계속 Terraform state 밖에 둔다.
 - Image tag 자동 업데이트는 후순위로 두었다. 초기 버전에서는 GitHub Actions가 image를 push하고, 사람이 `k8s/deployment.yaml`의 image tag를 갱신한 뒤, Argo CD가 Git desired state를 sync하는 구조로 CI와 CD 책임 분리를 명확히 검증했다. 공개 repo에서는 GCP 계정별 image URI를 placeholder로 되돌렸고, 실제 검증 image는 validation 기록과 캡처로 분리했다.
 - Argo CD `repoURL`은 실제 공개 GitHub repository URL을 유지한다. 이 값은 secret이 아니라 Argo CD sync 증거와 연결되는 공개 주소이며, fork하거나 재사용할 때는 본인 repository URL로 교체해야 한다.
 - Cloud DNS, HTTPS, static IP는 초기 범위에서 제외했다. 먼저 host rule 없는 GCE Ingress External IP와 HTTP 200으로 Service -> Pods 경로와 GKE-managed load balancer 동작을 검증하고, 도메인과 인증서 의존성은 다음 단계 개선으로 남겼다.
@@ -61,20 +62,20 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 
 ## Portfolio Talking Points
 
-- Terraform root module과 `network`, `gke`, `artifact_registry` module boundary로 GCP 리소스 책임을 설명할 수 있다.
+- Terraform root module과 `project_services`, `network`, `gke`, `artifact_registry`, `github_wif` module boundary로 GCP 리소스 책임을 설명할 수 있다.
 - Regional GKE에서 `node_locations = ["asia-northeast3-a", "asia-northeast3-c"]`, `node_count = 1` 조합이 실제 node 2개로 생성되는 동작을 검증했다.
 - VPC-native GKE를 위해 Pod/Service secondary range를 subnet 설계에 포함했다.
 - GKE node service account를 별도로 두고, GKE 기본 node role과 Artifact Registry reader 권한을 분리해 image pull 경로를 검증했다.
 - GitHub Actions는 Artifact Registry image build/push를 담당하고, Argo CD는 Git desired state sync를 담당하도록 CI/CD 책임을 분리했다.
 - GCE Ingress, Service, NEG, backend health, External IP HTTP 200까지 확인해 외부 트래픽 경로를 끝까지 검증했다.
-- GitHub OIDC/WIF를 service account key 없이 구성해 GitHub Actions image push를 검증했다.
+- GitHub OIDC/WIF를 service account key 없이 구성해 GitHub Actions image push를 검증했고, 같은 GCP-side prerequisite를 Terraform import 대상으로 전환하는 코드를 추가했다.
 - Argo CD Application이 `k8s/` manifest를 sync하고 `Synced/Healthy` 상태가 되는 것을 CLI와 UI 캡처로 확인했다.
 - quota, GKE Ingress class, Argo CD CRD, rollout resource 부족 같은 실제 실패를 문서화하고 원인과 해결을 재현 가능하게 남겼다.
 
 ## Future Improvements
 
 - Terraform state를 GCS remote backend로 이전하고, state 접근 권한과 locking 전략을 정리한다.
-- GitHub OIDC/WIF 리소스를 Terraform으로 자동화하거나, 이미 수동 구성된 리소스를 import하는 전략을 설계한다.
+- GCP API enablement와 GitHub OIDC/WIF 수동 리소스를 Terraform state에 import하고, post-import plan이 destroy/recreate 없이 안정적인지 검증한다.
 - HTTPS Ingress를 위해 static IP, Managed Certificate, Cloud DNS 구성을 추가한다.
 - GitHub Actions가 push한 image tag를 manifest에 자동 반영하는 전략을 도입한다. 선택지는 CI가 PR을 생성하는 방식, Kustomize/Helm values 업데이트, Argo CD Image Updater 등이다.
 - Argo CD `AppProject`, RBAC, repository access policy를 강화해 GitOps 운영 경계를 더 명확히 한다.

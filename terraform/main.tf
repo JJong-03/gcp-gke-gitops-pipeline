@@ -14,6 +14,13 @@ provider "google" {
   region  = var.region
 }
 
+module "project_services" {
+  source = "./modules/project_services"
+
+  project_id = var.project_id
+  services   = var.enabled_project_services
+}
+
 module "network" {
   source = "./modules/network"
 
@@ -26,6 +33,10 @@ module "network" {
   pods_secondary_cidr           = var.pods_secondary_cidr
   services_secondary_range_name = var.services_secondary_range_name
   services_secondary_cidr       = var.services_secondary_cidr
+
+  depends_on = [
+    module.project_services,
+  ]
 }
 
 module "gke" {
@@ -54,4 +65,26 @@ module "artifact_registry" {
   reader_members = {
     gke_node = module.gke.node_service_account_member
   }
+
+  depends_on = [
+    module.project_services,
+  ]
+}
+
+module "github_wif" {
+  source = "./modules/github_wif"
+
+  project_id                      = var.project_id
+  project_number                  = var.project_number
+  region                          = var.region
+  artifact_registry_repository_id = module.artifact_registry.repository_id
+  github_owner                    = var.github_owner
+  github_repository               = var.github_repository
+  wif_pool_id                     = var.wif_pool_id
+  wif_provider_id                 = var.wif_provider_id
+  deploy_service_account_id       = var.github_actions_deploy_service_account_id
+
+  depends_on = [
+    module.project_services,
+  ]
 }
