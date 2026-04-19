@@ -32,6 +32,9 @@ kubeconfig*
 *.p12
 *.pfx
 
+# Local AI handoff plans and import runbooks
+docs/plan/
+
 # Editor and IDE files
 .vscode/
 .idea/
@@ -45,4 +48,3 @@ Thumbs.db
 *.tmp
 *.temp
 *.log
-
