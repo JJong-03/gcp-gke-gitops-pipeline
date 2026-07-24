@@ -8,6 +8,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Push the image to Artifact Registry after GCP/WIF recreation"
+        required: true
+        type: boolean
+        default: false
 
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -16,38 +22,44 @@ env:
   IMAGE_NAME: sample-app
 
 jobs:
-  build:
-    name: Build image
+  terraform:
+    name: Terraform checks
     runs-on: ubuntu-latest
-
-    outputs:
-      image_uri: ${{ steps.image.outputs.uri }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate workflow configuration
-        run: |
-          : "${PROJECT_ID:?Set repository variable GCP_PROJECT_ID}"
-          : "${REGION:?Set repository variable GCP_REGION or rely on the default}"
-          : "${ARTIFACT_REGISTRY_REPOSITORY:?Set repository variable ARTIFACT_REGISTRY_REPOSITORY or rely on the default}"
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.8
 
-      - name: Compose image URI
-        id: image
-        run: |
-          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}"
-          echo "uri=${IMAGE_URI}" >> "${GITHUB_OUTPUT}"
-          echo "IMAGE_URI=${IMAGE_URI}" >> "${GITHUB_ENV}"
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize without backend
+        run: terraform -chdir=terraform init -backend=false -input=false
+
+      - name: Validate configuration
+        run: terraform -chdir=terraform validate -no-color
+
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t "${IMAGE_URI}" ./app
+        run: docker build -t "${IMAGE_NAME}:${GITHUB_SHA}" ./app
 
   push:
-    name: Push image
+    name: Push image (manual deploy)
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [terraform, build]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
 
     permissions:
       contents: read
@@ -62,6 +74,11 @@ jobs:
           : "${PROJECT_ID:?Set repository variable GCP_PROJECT_ID}"
           : "${REGION:?Set repository variable GCP_REGION or rely on the default}"
           : "${ARTIFACT_REGISTRY_REPOSITORY:?Set repository variable ARTIFACT_REGISTRY_REPOSITORY or rely on the default}"
+          : "${GCP_WORKLOAD_IDENTITY_PROVIDER:?Recreate WIF and set GCP_WORKLOAD_IDENTITY_PROVIDER}"
+          : "${GCP_SERVICE_ACCOUNT:?Recreate WIF and set GCP_SERVICE_ACCOUNT}"
+        env:
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -76,11 +93,10 @@ jobs:
         run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
       - name: Rebuild Docker image for push
-        env:
-          IMAGE_URI: ${{ needs.build.outputs.image_uri }}
-        run: docker build -t "${IMAGE_URI}" ./app
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "${GITHUB_ENV}"
+          docker build -t "${IMAGE_URI}" ./app
 
       - name: Push Docker image
-        env:
-          IMAGE_URI: ${{ needs.build.outputs.image_uri }}
         run: docker push "${IMAGE_URI}"

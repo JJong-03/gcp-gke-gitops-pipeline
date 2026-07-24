@@ -1,5 +1,7 @@
 # GCP GKE GitOps Pipeline
 
+[![CI](https://github.com/JJong-03/gcp-gke-gitops-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/JJong-03/gcp-gke-gitops-pipeline/actions/workflows/ci.yml)
+
 <div align="center">
   <img src="https://img.shields.io/badge/GCP-151515?style=for-the-badge&logo=googlecloud&logoColor=4285F4" alt="GCP" />
   <img src="https://img.shields.io/badge/GKE-151515?style=for-the-badge&logo=kubernetes&logoColor=326CE5" alt="GKE" />
@@ -20,21 +22,21 @@
 | 목표 | GCP GKE 기반 CI/CD와 GitOps 흐름을 Terraform, GitHub Actions, Argo CD로 구성 |
 | 리전 | `asia-northeast3` |
 | Infrastructure | VPC/Subnet, regional GKE, node pool, Artifact Registry, node IAM, GCP API/WIF Terraform definitions |
-| CI | GitHub Actions: Docker build, `main` push 시 Artifact Registry push |
+| CI | push/PR: Docker build + Terraform fmt/validate. Artifact Registry push는 WIF 재생성 후 수동 deploy 실행 |
 | CD | Argo CD: `k8s/` manifest를 GKE에 sync |
-| 현재 상태 | Terraform apply, GKE bootstrap, app rollout, Ingress HTTP 200, GitHub Actions image push, Argo CD `Synced/Healthy` 검증 완료. GCP API enablement와 GitHub Actions WIF prerequisite Terraform import 완료, post-import plan `No changes.` 확인 |
+| 현재 상태 | apply·rollout·Ingress HTTP 200·WIF image push·Argo CD `Synced/Healthy`를 검증한 뒤 비용 관리를 위해 GCP 리소스를 정리. 상시 CI는 cloud credential 없이 build·Terraform 검증을 수행 |
 
 ## Architecture
 
 ```text
 User -> GKE Ingress -> Service -> sample-app Pods
 
-Developer -> GitHub Actions -> Artifact Registry
+Developer -> GitHub Actions build/check -> Artifact Registry (manual deploy after WIF recreation)
 Git repository -> Argo CD -> GKE Cluster
 Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF prerequisites
 ```
 
-핵심 설계는 CI와 CD의 책임 분리입니다. GitHub Actions는 이미지를 만들고 Artifact Registry에 push하며, Argo CD는 Git에 기록된 Kubernetes manifest를 클러스터에 동기화합니다.
+핵심 설계는 CI와 CD의 책임 분리입니다. 상시 CI는 이미지 build와 Terraform 검증을 수행합니다. GCP 리소스를 재생성한 뒤 수동 deploy를 선택하면 Actions가 WIF로 Artifact Registry에 push하고, Argo CD는 Git에 기록된 Kubernetes manifest를 클러스터에 동기화합니다.
 
 자세한 구조와 설계 결정은 [Architecture](docs/01-architecture.md)와 [Terraform Plan](docs/03-terraform-plan.md)에 정리했습니다.
 
@@ -74,7 +76,7 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 | `terraform/` | GCP API enablement, VPC, GKE, Artifact Registry, GitHub Actions WIF prerequisite modules |
 | `k8s/` | Deployment, Service, Ingress desired state |
 | `gitops/` | Argo CD Application bootstrap manifest |
-| `.github/workflows/` | GitHub Actions image build/push workflow |
+| `.github/workflows/` | 상시 build·Terraform 검사, 수동 WIF image push workflow |
 | `app/` | Nginx placeholder application |
 | `docs/` | architecture, validation, troubleshooting, portfolio notes |
 
