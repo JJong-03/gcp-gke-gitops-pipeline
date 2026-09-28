@@ -52,6 +52,10 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 
 검증 로그는 [Validation](docs/07-validation.md), 문제 해결 과정은 [Troubleshooting](docs/08-troubleshooting.md), 캡처 목록은 [Image Evidence](docs/images/README.md)에서 확인할 수 있습니다.
 
+## 대표 문제 해결: 노드 2대에서 멈춘 롤아웃
+
+새 이미지로 교체하던 중 추가로 뜬 Pod가 `0/2 nodes are available: 2 Insufficient cpu.`로 Pending에서 멈췄습니다. 기본 교체 전략은 기존 Pod 2개를 둔 채 1개를 더 띄우는데, 비용 때문에 작게 잡은 e2-medium 노드 2대에는 그만큼의 CPU가 없었습니다. `maxSurge: 0`, `maxUnavailable: 1`로 바꿔 기존 Pod부터 하나씩 교체했고, Argo CD `Synced/Healthy`와 Pod 2/2, HTTP 200을 확인했습니다. 교체하는 동안 Pod가 1개로 줄어들므로, 운영에서는 노드 여유 용량과 자동 확장부터 확보해야 한다고 기록했습니다. 자세한 과정은 [Troubleshooting](docs/08-troubleshooting.md)에 있습니다.
+
 ## Evidence
 
 대표 검증 캡처는 [Image Evidence](docs/images/README.md)에 정리했습니다.
