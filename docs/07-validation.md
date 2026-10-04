@@ -54,6 +54,7 @@
 | GitHub Actions build | workflow `build` job 확인 | Docker image build 성공 | commit `e3a889e...` push 후 Artifact Registry에 matching image tag가 생성되어 build/push flow 성공 확인 | 완료 | 2026-04-19 GitHub/GCP | `docs/06-gitops-cicd.md` |
 | Artifact Registry push (CI) | GitHub Actions workflow `push` job 또는 registry 확인 | `sample-app:${GITHUB_SHA}` image push 확인 | `sample-app:e3a889e3cf74ba0491c60436492a085fe3419f4f` 생성 확인. Digest `sha256:5612a9a865a5037fbf4c0a3f742251ed54d54f9396d2e517544f000efcb3c001` | 완료 | 2026-04-19 GCP | `docs/06-gitops-cicd.md` |
 | Argo CD sync | Argo CD Application 확인 | sync status `Synced`, health `Healthy` | Argo CD 설치 후 Application `Synced/Healthy`, revision `13572bdb7928e7bd59393738091bd925e06b1163`, Deployment `2/2` rollout 완료 | 완료 | 2026-04-19 local/GKE | `docs/06-gitops-cicd.md`, `docs/08-troubleshooting.md` |
+| 실행 비용 재계산 | Admin Activity 감사 로그의 생성, 삭제 시각(`gcloud logging read`)과 Cloud Billing Catalog API 정가 | 실제 실행분과 같은 구성을 24시간 켜 둘 때의 월 비용을 근거와 함께 계산 | 실행분 약 $1.4($1.425), 24시간 기준 월 약 $165.38. 청구서 금액이 아닌 정가 재계산 | 완료 | 2026-10-04 local | `README.md`, `docs/09-portfolio-notes.md` |
 
 ## 실행 기록 템플릿
 
@@ -438,6 +439,47 @@
 - 기대 결과: GitOps sync 후에도 External IP에서 placeholder app 응답
 - 실제 결과: `HTTP/1.1 200 OK`, `Via: 1.1 google`, placeholder HTML 응답 확인
 - 상태: 완료
+
+### 2026-10-04 - 실행 비용 재계산 (감사 로그와 정가)
+
+청구 내역을 BigQuery로 내보내도록 설정하지 않아 CLI로는 청구 금액을 조회할 수 없다. 그래서 GCP가 400일 동안 보관하는 Admin Activity 감사 로그에서 자원이 떠 있던 시간을 찾고, Cloud Billing Catalog API의 정가를 곱해 다시 계산했다.
+
+- 명령: `gcloud logging read 'logName:"cloudaudit.googleapis.com%2Factivity" AND protoPayload.methodName:("CreateCluster" OR "DeleteCluster" OR "instances.insert" OR "instances.delete" OR "globalForwardingRules")' --project [PROJECT_ID] --freshness=200d --order=asc`
+- 명령: `GET https://cloudbilling.googleapis.com/v1/services/[SERVICE_ID]/skus?currencyCode=USD` (Kubernetes Engine `CCD8-9BF1-090E`, Compute Engine `6F81-5844-456A`, Networking `E505-1604-58F8`)
+- 기대 결과: 실제 실행분과 같은 구성을 24시간 켜 둘 때의 월 비용을 항목별 근거와 함께 계산
+- 실제 결과: 자원이 떠 있던 시간은 아래와 같다. 생성 요청부터 삭제 완료까지로 잡았다(KST).
+
+| 자원 | 시각 (2026-04-19 ~ 20, KST) | 시간 |
+|---|---|---|
+| GKE cluster | 1차 18:34 ~ 18:52, 2차 18:52 ~ 19:06 (둘 다 생성 실패 뒤 삭제), 3차 19:16 ~ 01:32 | 합계 6.80h |
+| node pool VM 2대 (e2-medium, Balanced PD 30GB) | 19:27 ~ 01:27, 19:27 ~ 01:28 | 6.00h, 6.03h |
+| 임시 default pool VM 5대 (e2-medium, 1차 100GB 2대, 3차 20GB 3대) | 1차 18:36 ~ 18:52, 3차 19:17 ~ 19:26 | 합계 0.87h |
+| Ingress global forwarding rule | 20:42 ~ 01:20 | 4.64h |
+
+단가는 2026-10-04에 Catalog API로 조회한 asia-northeast3 정가(USD)다.
+
+| 항목 | 단가 |
+|---|---|
+| GKE 클러스터 관리비 (리전, 존 동일) | $0.10/h |
+| e2-medium (fractional vCPU 1, 메모리 4GB) | $0.04298/h = E2 vCPU $0.02802642/h + 메모리 4GiB × $0.00373911/h |
+| Balanced PD | GiB당 월 $0.13 |
+| Global forwarding rule (5개까지) | $0.025/h |
+| Standard VM 외부 IP | 결제 계정당 월 744h까지 무료, 이후 $0.005/h |
+
+| 항목 | 실제 실행분 | 24시간 기준 월 (730h) |
+|---|---|---|
+| 클러스터 관리비 | $0.68 | $73.00 (44%) |
+| 노드 VM | $0.55 | $62.75 (38%) |
+| Ingress forwarding rule | $0.12 | $18.25 (11%) |
+| 디스크 | $0.07 | $7.80 (5%) |
+| 노드 외부 IP | 무료 범위 | $3.58 (2%) |
+| 합계 | $1.425 (약 $1.4) | 약 $165.38 |
+
+- 상태: 완료
+- 해석: 24시간 기준 가장 큰 항목은 노드가 아니라 리전 클러스터 관리비다. GKE 무료 크레딧(결제 계정당 월 $74.40)은 존 클러스터와 Autopilot에만 적용되고, 리전 클러스터 관리비에는 쓸 수 없다. 같은 노드 구성을 존 클러스터로 만들면 관리비가 크레딧으로 상쇄돼 월 약 $92.38이 되지만, 컨트롤 플레인이 한 존에만 있어 SLA가 99.95%에서 99.5%로 낮아진다.
+- 한계: 청구서 금액이 아니라 정가로 다시 계산한 값이다. 단가는 2026-10-04 조회 값이라 2026-04 단가와 다를 수 있다. 시간은 생성 요청부터 삭제 완료까지로 잡아 실제 과금 시간보다 길거나 같다. Artifact Registry 저장(월 0.5GB 무료), 네트워크 전송, Load Balancer 데이터 처리, GKE가 만든 컨트롤 플레인 내부 엔드포인트용 regional forwarding rule은 계산에서 뺐다. 무료 체험 크레딧 적용 여부는 반영하지 않았다.
+- 증거: Admin Activity 감사 로그(`CreateCluster`, `DeleteCluster`, `compute.instances.insert`, `compute.instances.delete`, `globalForwardingRules.insert`, `globalForwardingRules.delete`), [GKE pricing](https://cloud.google.com/kubernetes-engine/pricing), Cloud Billing Catalog API 응답
+- 관련 이슈: 1차, 2차 생성 실패는 `docs/08-troubleshooting.md`의 SSD quota 초과와 disk 크기 오류다. 감사 로그에도 `Quota 'SSD_TOTAL_GB' exceeded. Limit: 250.0`과 `Disk cannot be smaller than the chosen image ... (12.0 GB)`가 남아 있다.
 
 ## 증거 기록 기준
 

@@ -56,6 +56,17 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 
 새 이미지로 교체하던 중 추가로 뜬 Pod가 `0/2 nodes are available: 2 Insufficient cpu.`로 Pending에서 멈췄습니다. 기본 교체 전략은 기존 Pod 2개를 둔 채 1개를 더 띄우는데, 비용 때문에 작게 잡은 e2-medium 노드 2대에는 그만큼의 CPU가 없었습니다. `maxSurge: 0`, `maxUnavailable: 1`로 바꿔 기존 Pod부터 하나씩 교체했고, Argo CD `Synced/Healthy`와 Pod 2/2, HTTP 200을 확인했습니다. 교체하는 동안 Pod가 1개로 줄어들므로, 운영에서는 노드 여유 용량과 자동 확장부터 확보해야 한다고 기록했습니다. 자세한 과정은 [Troubleshooting](docs/08-troubleshooting.md)에 있습니다.
 
+## 비용
+
+검증에 필요한 시간만 클러스터를 띄우고 `terraform destroy`로 정리했습니다. 아래 금액은 감사 로그에 남은 생성, 삭제 시각에 서울 리전 정가(2026-10-04 조회)를 곱해 다시 계산한 값이며, 청구서 금액은 아닙니다.
+
+| 기준 | 금액 |
+|---|---|
+| 실제 실행분 (2026-04-19, 노드 2대 약 6시간, 실패한 생성 시도 2번 포함) | 약 $1.4 |
+| 같은 구성을 24시간 켜 둘 때 | 월 약 $165 |
+
+24시간 기준으로 가장 큰 항목은 e2-medium 노드 2대(월 $62.75)가 아니라 리전 클러스터 관리비(월 $73.00, 44%)입니다. GKE 무료 크레딧은 존 클러스터와 Autopilot에만 적용되기 때문입니다. 같은 노드 구성을 존 클러스터로 만들면 관리비가 크레딧으로 상쇄돼 월 약 $92가 되지만, 컨트롤 플레인이 한 존에만 있어 SLA가 99.95%에서 99.5%로 낮아집니다. 항목별 시간과 단가는 [Validation](docs/07-validation.md)의 2026-10-04 기록에 있습니다.
+
 ## Evidence
 
 대표 검증 캡처는 [Image Evidence](docs/images/README.md)에 정리했습니다.
@@ -102,7 +113,7 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 | [GKE Bootstrap](docs/04-gke-bootstrap.md) | GKE 접속과 기본 점검 |
 | [App Deployment](docs/05-app-deployment.md) | Kubernetes 배포와 Ingress 검증 |
 | [GitOps CI/CD](docs/06-gitops-cicd.md) | GitHub Actions, WIF, Argo CD 흐름 |
-| [Validation](docs/07-validation.md) | 실제 검증 기록 |
+| [Validation](docs/07-validation.md) | 실제 검증 기록과 실행 비용 재계산 |
 | [Troubleshooting](docs/08-troubleshooting.md) | 장애 원인, 해결, 재발 방지 |
 | [Portfolio Notes](docs/09-portfolio-notes.md) | 발표/면접용 설명 포인트 |
 | [Reproduction Runbook](docs/10-reproduction-runbook.md) | 처음부터 다시 따라 실행하는 절차 |
@@ -113,4 +124,4 @@ Terraform -> GCP APIs, VPC/Subnet, GKE, Artifact Registry, GitHub Actions WIF pr
 - Cloud DNS, static IP, Managed Certificate 기반 HTTPS Ingress
 - image tag 자동 반영 전략
 - Argo CD AppProject/RBAC hardening
-- cleanup 절차 자동화와 비용 추정 보강
+- cleanup 절차 자동화
