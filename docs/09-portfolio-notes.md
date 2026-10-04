@@ -57,7 +57,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 - Argo CD `repoURL`은 실제 공개 GitHub repository URL을 유지한다. 이 값은 secret이 아니라 Argo CD sync 증거와 연결되는 공개 주소이며, fork하거나 재사용할 때는 본인 repository URL로 교체해야 한다.
 - Cloud DNS, HTTPS, static IP는 초기 범위에서 제외했다. 먼저 host rule 없는 GCE Ingress External IP와 HTTP 200으로 Service -> Pods 경로와 GKE-managed load balancer 동작을 검증하고, 도메인과 인증서 의존성은 다음 단계 개선으로 남겼다.
 - Terraform remote backend는 아직 구성하지 않았다. 현재는 개인 포트폴리오 검증 단계라 local state로 진행했고, 협업이나 장기 운영으로 확장할 경우 GCS backend, state locking, 접근 권한 정책을 별도 설계해야 한다.
-- Regional GKE를 사용하되 node locations를 2개 zone으로 제한했다. 이는 멀티존 배치와 비용 통제를 동시에 설명하기 위한 선택이며, production 수준의 autoscaling 또는 고가용성 설계를 완성했다는 의미는 아니다.
+- Regional GKE를 사용하되 node locations를 2개 zone으로 제한했다. 이는 멀티존 배치와 비용 통제를 동시에 설명하기 위한 선택이며, production 수준의 autoscaling 또는 고가용성 설계를 완성했다는 의미는 아니다. 2026-10-04에 감사 로그와 정가로 다시 계산해 보니, 리전 클러스터 관리비(시간당 $0.10)는 GKE 무료 크레딧 대상이 아니어서 같은 구성을 24시간 켜 둘 때의 월 비용(약 $165) 중 44%로 노드 2대(38%)보다 컸다. 비용이 우선이라면 존 클러스터로 관리비를 크레딧으로 상쇄할 수 있지만, 컨트롤 플레인이 한 존에만 있게 된다. 계산은 `docs/07-validation.md`의 2026-10-04 기록에 있다.
 - Kubernetes 리소스는 `Deployment`, `Service`, `Ingress`, Argo CD `Application` 중심으로 제한했다. sample app 자체보다 플랫폼 흐름 검증이 목표였기 때문에 복잡한 app logic, service mesh, advanced rollout controller는 초기 버전에서 제외했다.
 
 ## Portfolio Talking Points
@@ -71,6 +71,7 @@ GCP GKE GitOps Pipeline은 GCP 기반 Kubernetes 배포 흐름을 Terraform, Git
 - GitHub OIDC/WIF를 service account key 없이 구성해 GitHub Actions image push를 검증했고, 같은 GCP-side prerequisite를 Terraform 코드와 state에 편입한 뒤 post-import plan `No changes.`까지 확인했다.
 - Argo CD Application이 `k8s/` manifest를 sync하고 `Synced/Healthy` 상태가 되는 것을 CLI와 UI 캡처로 확인했다.
 - quota, GKE Ingress class, Argo CD CRD, rollout resource 부족 같은 실제 실패를 문서화하고 원인과 해결을 재현 가능하게 남겼다.
+- 검증에 필요한 약 6시간만 클러스터를 띄우고 destroy해 실제 실행분을 정가 기준 약 $1.4로 마쳤고, 같은 구성을 24시간 켜 두면 월 약 $165라는 것을 감사 로그와 Catalog API 정가로 다시 계산했다(청구서 금액 아님).
 
 ## Future Improvements
 
